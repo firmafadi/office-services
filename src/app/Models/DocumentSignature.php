@@ -30,11 +30,19 @@ class DocumentSignature extends Model
     public function getUrlPublicAttribute()
     {
         $path = config('sikd.base_path_file');
-        $file = $this->checkFile($path . 'ttd/draft/' . $this->tmp_draft_file);
-        if ($file == false) {
-            $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
-            if ($file == false) { // handle for old data
-                $file = $path . 'ttd/blm_ttd/' . $this->file;
+        // New data with registered flow
+        if ($this->is_registered == true) {
+            $file = $path . 'ttd/sudah_ttd/' . $this->file;
+        } elseif ($this->is_registered == false) {
+            $file = $path . 'ttd/draft/' . $this->tmp_draft_file;
+        } else {
+            // Old data without registered flow
+            $file = $this->checkFile($path . 'ttd/draft/' . $this->tmp_draft_file);
+            if ($file == false) {
+                $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
+                if ($file == false) { // handle for old data before draft schema implemented
+                    $file = $path . 'ttd/blm_ttd/' . $this->file;
+                }
             }
         }
         return $file;
@@ -51,9 +59,15 @@ class DocumentSignature extends Model
 
     public function getCanDownloadAttribute()
     {
-        if (str_contains($this->url_public, 'sudah_ttd')) {
+        // New data with registered flow
+        if ($this->is_registered != null && $this->is_registered == true) {
             return true;
         }
+        // Old data without registered flow
+        if ($this->is_registered == null && str_contains($this->url_public, 'sudah_ttd')) {
+            return true;
+        }
+        // Default response document can't download
         return false;
     }
 
