@@ -8,6 +8,8 @@ use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureForward;
 use App\Models\DocumentSignatureSent;
 use App\Models\InboxReceiver;
+use App\Models\InboxReceiverTemp;
+use App\Models\InboxTemp;
 use GraphQL\Type\Definition\ResolveInfo;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -44,14 +46,27 @@ class DocumentSignatureHistoryQuery
         }
 
         $documentSignatureDistribute = [];
+        $distributed = false;
+        // Data distributed (available on inbox files table)
         if ($inboxId) {
+            $distributed = true;
             $documentSignatureDistribute = InboxReceiver::where('NId', $inboxId)
                                         ->with(['sender', 'receiver'])
                                         ->where('ReceiverAs', 'to')
                                         ->get();
+        } else {
+            // Find data is registered or not
+            $inboxTemp = InboxTemp::where('ttd_id', $documentSignature->id)->first();
+            if ($inboxTemp) {
+                $documentSignatureDistribute = InboxReceiverTemp::where('NId', $inboxTemp)
+                                            ->with(['sender', 'receiver'])
+                                            ->where('ReceiverAs', 'to')
+                                            ->get();
+            }
         }
 
         $data = collect([
+            'distributed' => $distributed,
             'documentSignatureDistribute' => $documentSignatureDistribute,
             'documentSignatureForward' => $documentSignatureForward,
             'documentSignatureSent' => $documentSignatureSent,

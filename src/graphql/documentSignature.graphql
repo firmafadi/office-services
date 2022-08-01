@@ -9,6 +9,7 @@ type DocumentSignature {
     code: String
     attachment: String
     note: String @rename(attribute: "catatan")
+    registered: Boolean @rename(attribute: "is_registered")
     validation: Validation @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureType@validate")
     inboxFile: InboxFile @belongsTo
     documentSignatureSents: [DocumentSignatureSent]

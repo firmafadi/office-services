@@ -25,6 +25,7 @@ type DocumentSignatureSentTimelines {
 }
 
 type DocumentSignatureSentHistory {
+    distributed: Boolean
     documentSignatureDistribute: [InboxReceiver]
     documentSignatureForward: DocumentSignatureSent
     documentSignatureSent: [DocumentSignatureSent]
