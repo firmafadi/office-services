@@ -31,16 +31,16 @@ class DocumentSignature extends Model
     {
         $path = config('sikd.base_path_file');
         // New data with registered flow
-        if ($this->is_registered == true) {
+        if ($this->is_registered === true) {
             $file = $path . 'ttd/sudah_ttd/' . $this->file;
-        } elseif ($this->is_registered == false) {
+        } elseif ($this->is_registered === false && $this->is_registered !== null) {
             $file = $path . 'ttd/draft/' . $this->tmp_draft_file;
         } else {
             // Old data without registered flow
             $file = $this->checkFile($path . 'ttd/draft/' . $this->tmp_draft_file);
-            if ($file == false) {
+            if ($file === false) {
                 $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
-                if ($file == false) { // handle for old data before draft schema implemented
+                if ($file === false) { // handle for old data before draft schema implemented
                     $file = $path . 'ttd/blm_ttd/' . $this->file;
                 }
             }
