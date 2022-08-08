@@ -2,6 +2,11 @@
 
 return [
     /*
+     | Enabling kfka functionality.
+     */
+    'enable' => env('KAFKA_ENABLE', false),
+
+    /*
      | Your kafka brokers url.
      */
     'brokers' => env('KAFKA_BROKERS', 'localhost:9092'),

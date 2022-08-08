@@ -20,6 +20,11 @@ trait KafkaTrait
      */
     public function kafkaPublish($topic, $data)
     {
+        $enabled = config('kafka.enable');
+        if (!$enabled) {
+            return false;
+        }
+
         $data['medium']     = 'mobile';
         $data['timestamp']  = time();
         if (auth()->user()) {
