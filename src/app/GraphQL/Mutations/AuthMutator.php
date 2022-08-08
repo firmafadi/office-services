@@ -2,12 +2,16 @@
 
 namespace App\GraphQL\Mutations;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\People;
 use Illuminate\Support\Arr;
 
 class AuthMutator
 {
+    use KafkaTrait;
+
     /**
      * @param $rootValue
      * @param $args
@@ -41,6 +45,11 @@ class AuthMutator
         $accessToken = $people->createToken($deviceName);
         $accessToken->accessToken->update([
             'fcm_token' => $deviceFcmToken
+        ]);
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'login',
+            'status' => KafkaStatusTypeEnum::SUCCESS()
         ]);
 
         return [
