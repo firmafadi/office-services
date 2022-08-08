@@ -15,6 +15,8 @@ type DocumentSignatureSent {
     forward: People @with(relation: "forward")
     read: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isRead")
     statusRead: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@statusRead")
+    senderRead: Boolean @rename(attribute: "is_sender_read")
+    receiverRead: Boolean @rename(attribute: "is_receiver_read")
     isLastSigned: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isLastSigned")
     parent: DocumentSignatureSent @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@parent")
     documentSignature: DocumentSignature @belongsTo
