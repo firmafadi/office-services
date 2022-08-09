@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use Illuminate\Support\Facades\Log;
 use Junges\Kafka\Facades\Kafka;
 use Junges\Kafka\Message\Message;
 
@@ -35,6 +36,9 @@ trait KafkaTrait
         /** @var \Junges\Kafka\Producers\ProducerBuilder $producer */
         // $producer = Kafka::publishOn($topic)->withMessage($message);
         $producer = Kafka::publishOn('analytic_event')->withBodyKey('medium', 'mobile');
+
+        Log::info('Start publish messages to Kafka.');
         $producer->send();
+        Log::info('Finish publish messages to Kafka.');
     }
 }
