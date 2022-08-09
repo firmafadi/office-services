@@ -34,7 +34,7 @@ trait KafkaTrait
         $message = new Message(body: $data);
         /** @var \Junges\Kafka\Producers\ProducerBuilder $producer */
         // $producer = Kafka::publishOn($topic)->withMessage($message);
-        $producer = Kafka::publishOn('topic')->withBodyKey('medium', 'mobile');
+        $producer = Kafka::publishOn('analytic_event')->withBodyKey('medium', 'mobile');
         $producer->send();
     }
 }
