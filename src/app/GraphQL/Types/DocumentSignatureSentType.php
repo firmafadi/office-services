@@ -2,6 +2,7 @@
 
 namespace App\GraphQL\Types;
 
+use App\Enums\SignatureStatusTypeEnum;
 use App\Models\DocumentSignatureSent;
 use App\Models\InboxReceiver;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -61,10 +62,18 @@ class DocumentSignatureSentType
      */
     public function isRead($rootValue, array $args, GraphQLContext $context)
     {
-        if ($rootValue->is_receiver_read == true || $rootValue->is_sender_read == true) {
-            return true;
+        if (
+            $rootValue->PeopleID == auth()->user()->PeopleId &&
+            $rootValue->PeopleID == $rootValue->forward_receiver_id &&
+            $rootValue->documentSignature->status == SignatureStatusTypeEnum::SUCCESS()->value
+        ) {
+            return $rootValue->documentSignature->is_conceptor_read;
         } else {
-            return false;
+            if ($rootValue->is_receiver_read == true || $rootValue->is_sender_read == true) {
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 

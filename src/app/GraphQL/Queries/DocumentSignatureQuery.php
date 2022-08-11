@@ -78,6 +78,13 @@ class DocumentSignatureQuery
 
         if ($documentSignatureSent->PeopleID == auth()->user()->PeopleId) {
             $documentSignatureSent->is_sender_read = true;
+            if (
+                $documentSignatureSent->PeopleID == $documentSignatureSent->forward_receiver_id &&
+                $documentSignatureSent->status == SignatureStatusTypeEnum::SUCCESS()->value
+            ) {
+                DocumentSignature::where('id', $documentSignatureSent->ttd_id)
+                                 ->update(['is_conceptor_read' => true]);
+            }
         }
 
         $documentSignatureSent->save();
