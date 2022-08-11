@@ -113,8 +113,8 @@ class DocumentSignatureHistoryQuery
         if ($inboxId) {
             $distributed = true;
             $documentSignatureDistribute = InboxReceiver::where('NId', $inboxId)
-                                        ->with(['sender', 'to_distributed'])
-                                        ->where('ReceiverAs', 'to')
+                                        ->with(['sender', 'receiver'])
+                                        ->where('ReceiverAs', 'to_distributed')
                                         ->get();
         } else {
             // Find data is registered or not
