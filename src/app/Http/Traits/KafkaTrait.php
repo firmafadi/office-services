@@ -33,6 +33,7 @@ trait KafkaTrait
         }
 
         $message = new Message(body: $data);
+
         /** @var \Junges\Kafka\Producers\ProducerBuilder $producer */
         $producer = Kafka::publishOn($topic)
             ->withConfigOptions(['compression.type' => 'none'])
