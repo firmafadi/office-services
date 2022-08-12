@@ -35,7 +35,6 @@ class AuthMutator
             );
         }
 
-        $this->modifyAuthAttribute($people);
 
         $issuedAt = time();
         $expTime = $issuedAt + config('jwt.refresh_ttl');
@@ -60,20 +59,5 @@ class AuthMutator
             'expires_in' => $expTime,
             'profile' => $people
         ];
-    }
-
-    /**
-     * Add another auth user atrributes
-     * Unset user password
-     *
-     * @param People $people
-     *
-     * @return void
-     */
-    protected function modifyAuthAttribute($people)
-    {
-        auth()->user()->roleDesc = $people->role->RoleDesc;
-        auth()->user()->department = $people->role->rolecode->rolecode_sort;
-        unset(auth()->user()->PeoplePassword);
     }
 }
