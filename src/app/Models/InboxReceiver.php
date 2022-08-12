@@ -48,6 +48,7 @@ class InboxReceiver extends Model
     public function history($query, $filter)
     {
         return $query->where('NId', $filter['inboxId'])
+            ->whereNotIn('ReceiverAs', ['to_distributed', 'to_archive'])
             ->where(function ($query) use ($filter) {
                 if ($filter['withAuthCheck']) {
                     $query->whereIn('GIR_Id', function ($query) {
@@ -62,14 +63,16 @@ class InboxReceiver extends Model
             ->where(function ($query) use ($filter) {
                 $status = $filter['status'] ?? null;
                 $excludeStatus = $filter['excludeStatus'] ?? null;
+                $excludeStatus = ($excludeStatus != null) ? ', ' : '';
+                $excludeStatus = $excludeStatus . 'to_distributed, to_archive';
+
                 if ($status) {
                     $status = explode(', ', $status);
                     $query->whereIn('ReceiverAs', $status);
                 }
-                if ($excludeStatus) {
-                    $excludeStatus = explode(', ', $excludeStatus);
-                    $query->whereNotIn('ReceiverAs', $excludeStatus);
-                }
+
+                $excludeStatus = explode(', ', $excludeStatus);
+                $query->whereNotIn('ReceiverAs', $excludeStatus);
             });
     }
 

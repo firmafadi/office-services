@@ -79,7 +79,9 @@ class InboxFileType
         })->get();
 
         if ($signers->isEmpty()) {
-            $documentSignature = DocumentSignature::where('file', $draft->FileName_fake)->first();
+            $documentSignature = DocumentSignature::where('file', $draft->FileName_fake)
+                                                ->orWhere('file', $draft->FileName_real)
+                                                ->first();
             $signers = People::whereIn('PeopleId', function ($query) use ($documentSignature) {
                 $query->select('PeopleIDTujuan')
                     ->from('m_ttd_kirim')

@@ -27,11 +27,16 @@ type DocumentSignatureSentTimelines {
 }
 
 type DocumentSignatureSentHistory {
-    distributed: Boolean
-    documentSignatureDistribute: [InboxReceiver]
+    documentSignatureDistribute: DocumentSignatureDistribute
     documentSignatureForward: DocumentSignatureSent
     documentSignatureSent: [DocumentSignatureSent]
     documentSignatureSelf: DocumentSignature
+}
+
+type DocumentSignatureDistribute {
+    data: [InboxReceiver]
+    distributed: Boolean
+    readDistributed: Boolean
 }
 
 input documentSignatureSentsInput {

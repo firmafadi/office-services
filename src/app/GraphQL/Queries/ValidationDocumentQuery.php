@@ -46,7 +46,7 @@ class ValidationDocumentQuery
 
         $inboxFile = InboxFile::where('NId', $latestSlug)
                             ->orWhere('FileName_fake', $latestSlug)
-                            ->where('Id_dokumen', '<>', '')->first();
+                            ->first();
 
         $documentSignature = null;
         if (!$inboxFile) {

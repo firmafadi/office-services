@@ -10,6 +10,7 @@ type DocumentSignature {
     attachment: String
     note: String @rename(attribute: "catatan")
     registered: Boolean @rename(attribute: "is_registered")
+    conceptorRead: Boolean @rename(attribute: "is_conceptor_read")
     validation: Validation @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureType@validate")
     inboxFile: InboxFile @belongsTo
     documentSignatureSents: [DocumentSignatureSent]

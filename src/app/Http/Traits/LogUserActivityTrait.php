@@ -11,6 +11,10 @@ trait LogUserActivityTrait
 {
     public function saveLogActivity($request)
     {
+        /**
+         * This log will be turn off/remove later because it's not necessary.
+         * We need doing kafka setup on production and migration log with jds data team already completed.
+         */
         $doLogging = true;
         if ($request['device'] == 'mobile') {
             $request['action'] = str_replace('"', '', $request['action']);
