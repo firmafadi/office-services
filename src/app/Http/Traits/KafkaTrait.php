@@ -33,11 +33,9 @@ trait KafkaTrait
         }
 
         $message = new Message(body: $data);
-
         /** @var \Junges\Kafka\Producers\ProducerBuilder $producer */
-        $producer = Kafka::publishOn($topic)
-            ->withConfigOptions(['compression.type' => 'none'])
-            ->withMessage($message);
+        // $producer = Kafka::publishOn($topic)->withMessage($message);
+        $producer = Kafka::publishOn('analytic_event')->withBodyKey('medium', 'mobile');
 
         Log::info('Start publish messages to Kafka.');
         $producer->send();
