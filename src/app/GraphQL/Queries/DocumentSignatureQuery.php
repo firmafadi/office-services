@@ -2,6 +2,7 @@
 
 namespace App\GraphQL\Queries;
 
+use App\Enums\ObjectiveTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Models\DocumentSignature;
@@ -72,22 +73,24 @@ class DocumentSignatureQuery
         }
 
         //Check the inbox is readed or not
-        if ($documentSignatureSent->PeopleIDTujuan == auth()->user()->PeopleId) {
-            $documentSignatureSent->is_receiver_read = true;
-        }
-
-        if ($documentSignatureSent->PeopleID == auth()->user()->PeopleId) {
-            $documentSignatureSent->is_sender_read = true;
-            if (
-                $documentSignatureSent->PeopleID == $documentSignatureSent->forward_receiver_id &&
-                $documentSignatureSent->status == SignatureStatusTypeEnum::SUCCESS()->value
-            ) {
-                DocumentSignature::where('id', $documentSignatureSent->ttd_id)
-                                 ->update(['is_conceptor_read' => true]);
+        if ($args['objective'] == ObjectiveTypeEnum::IN()) { // action from inbox
+            if ($documentSignatureSent->PeopleIDTujuan == auth()->user()->PeopleId) {
+                $documentSignatureSent->is_receiver_read = true;
             }
-        }
 
-        $documentSignatureSent->save();
+            if ($documentSignatureSent->PeopleID == auth()->user()->PeopleId) {
+                $documentSignatureSent->is_sender_read = true;
+                if (
+                    $documentSignatureSent->PeopleID == $documentSignatureSent->forward_receiver_id &&
+                    $documentSignatureSent->status == SignatureStatusTypeEnum::SUCCESS()->value
+                ) {
+                    DocumentSignature::where('id', $documentSignatureSent->ttd_id)
+                                     ->update(['is_conceptor_read' => true]);
+                }
+            }
+
+            $documentSignatureSent->save();
+        }
 
         return $documentSignatureSent;
     }
