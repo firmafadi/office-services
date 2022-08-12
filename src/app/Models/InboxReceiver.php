@@ -146,6 +146,7 @@ class InboxReceiver extends Model
     {
         return InboxReceiver::where('NId', $this->NId)
                         ->where('GIR_Id', $this->GIR_Id)
+                        ->whereNotIn('ReceiverAs', ['to_distributed', 'to_archive'])
                         ->get();
     }
 
