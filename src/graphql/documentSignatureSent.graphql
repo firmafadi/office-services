@@ -37,6 +37,7 @@ type DocumentSignatureDistribute {
     data: [InboxReceiver]
     distributed: Boolean
     readDistributed: Boolean
+    typeDistributed: String
 }
 
 input documentSignatureSentsInput {

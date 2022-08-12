@@ -2,6 +2,7 @@
 
 namespace App\GraphQL\Queries;
 
+use App\Enums\DocumentSignatureTypeDistributeForwardEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Models\DocumentSignature;
@@ -53,6 +54,7 @@ class DocumentSignatureHistoryQuery
                 'data' => $documentSignatureDistribute,
                 'distributed' => $distributed,
                 'readDistributed' => $readDistributed,
+                'typeDistributed' => $documentSignature->documentSignatureType->document_distribution_target
             ],
             'documentSignatureForward' => $documentSignatureForward,
             'documentSignatureSent' => $documentSignatureSent,
@@ -103,18 +105,20 @@ class DocumentSignatureHistoryQuery
      *
      * @param  mixed $inboxId
      * @param  mixed $documentSignature
-     * @return void
+     * @return array
      */
     protected function documentSignatureDistribute($inboxId, $documentSignature)
     {
         $documentSignatureDistribute = [];
         $distributed = false;
         // Data distributed (available on inbox files table)
+        $documentSignatureTypeDistributeTarget = $documentSignature->documentSignatureType->document_distribution_target;
+        $status = ($documentSignatureTypeDistributeTarget == DocumentSignatureTypeDistributeForwardEnum::TU()) ? 'to' : 'to_distributed';
         if ($inboxId) {
             $distributed = true;
             $documentSignatureDistribute = InboxReceiver::where('NId', $inboxId)
                                         ->with(['sender', 'receiver'])
-                                        ->where('ReceiverAs', 'to_distributed')
+                                        ->where('ReceiverAs', $status)
                                         ->get();
         } else {
             // Find data is registered or not
