@@ -330,6 +330,7 @@ class DocumentSignatureMutator
             'data' => [
                 'documentSignatureSentId' => $id,
                 'target' => DocumentSignatureSentNotificationTypeEnum::SENDER(),
+                'action' => FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL(),
                 'list' => FcmNotificationListTypeEnum::SIGNATURE()
             ]
         ];
