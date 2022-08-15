@@ -47,9 +47,14 @@ class AuthMutator
             'fcm_token' => $deviceFcmToken
         ]);
 
+        $session_userdata = $people->toArray();
+        $session_userdata['roleDesc'] = $people->role->RoleDesc;
+        $session_userdata['department'] = $people->role->rolecode->rolecode_sort;
+
         $this->kafkaPublish('analytic_event', [
             'event' => 'login',
-            'status' => KafkaStatusTypeEnum::SUCCESS()
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'session_userdata' => $session_userdata,
         ]);
 
         return [

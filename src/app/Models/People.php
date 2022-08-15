@@ -26,6 +26,8 @@ class People extends Authenticatable
 
     protected $primaryKey = 'PeopleId';
 
+    protected $hidden = ['PeoplePassword'];
+
     public function role()
     {
         return $this->belongsTo(Role::class, 'PrimaryRoleId', 'RoleId');
