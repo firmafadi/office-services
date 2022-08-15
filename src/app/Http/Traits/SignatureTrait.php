@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Models\PassphraseSession;
 use Carbon\Carbon;
@@ -66,11 +67,24 @@ trait SignatureTrait
         $passphraseSession->keterangan      = 'Berhasil melakukan TTE dari mobile';
         $passphraseSession->log_desc        = 'OK';
 
+        $logData = [
+            'event' => 'esign',
+            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+            'letter' => [
+                'id' => $id
+            ]
+        ];
+
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             $passphraseSession->keterangan      = 'Gagal melakukan TTE dari mobile';
             $passphraseSession->log_desc        = $bodyResponse->error . ' | File : ' . $id . ' | User : ' . auth()->user()->PeopleId;
+
+            $logData['status'] = KafkaStatusTypeEnum::ESIGN_FAILED();
+            $logData['message'] = $bodyResponse->error;
         }
+
+        $this->kafkaPublish('analytic_event', $logData);
 
         $passphraseSession->save();
 
