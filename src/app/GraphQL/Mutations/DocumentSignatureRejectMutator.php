@@ -5,10 +5,12 @@ namespace App\GraphQL\Mutations;
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Enums\StatusReadTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 use Illuminate\Support\Arr;
@@ -16,6 +18,7 @@ use Illuminate\Support\Arr;
 class DocumentSignatureRejectMutator
 {
     use SendNotificationTrait;
+    use KafkaTrait;
 
     /**
      * @param $rootValue
@@ -51,6 +54,14 @@ class DocumentSignatureRejectMutator
         ]);
 
         $this->doSendNotification($documentSignatureSentId);
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'reject_esign',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'id' => $documentSignatureSentId
+            ]
+        ]);
 
         return $documentSignatureSent;
     }
