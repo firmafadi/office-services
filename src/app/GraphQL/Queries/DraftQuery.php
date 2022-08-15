@@ -2,8 +2,10 @@
 
 namespace App\GraphQL\Queries;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\Draft;
 use App\Models\InboxReceiverCorrection;
 use App\Models\People;
@@ -12,6 +14,8 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class DraftQuery
 {
+    use KafkaTrait;
+
     /**
      * @param $rootValue
      * @param array                                                    $args
@@ -36,6 +40,14 @@ class DraftQuery
 
         $inboxReceiverCorrection->StatusReceive = 'read';
         $inboxReceiverCorrection->save();
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $inboxReceiverCorrection->NId
+            ]
+        ]);
 
         return $inboxReceiverCorrection;
     }
