@@ -63,9 +63,8 @@ class InboxReceiver extends Model
             ->where(function ($query) use ($filter) {
                 $status = $filter['status'] ?? null;
                 $excludeStatus = $filter['excludeStatus'] ?? null;
-                $excludeStatus = ($excludeStatus != null) ? ', ' : '';
-                $excludeStatus = $excludeStatus . 'to_distributed, to_archive';
-
+                $beforeAddMoreExcludeStatus = ($excludeStatus != null) ? ', ' : '';
+                $excludeStatus = $excludeStatus . $beforeAddMoreExcludeStatus . 'to_distributed, to_archive';
                 if ($status) {
                     $status = explode(', ', $status);
                     $query->whereIn('ReceiverAs', $status);
