@@ -3,9 +3,11 @@
 namespace App\GraphQL\Queries;
 
 use App\Enums\InboxReceiverScopeType;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignatureSent;
 use App\Models\InboxReceiver;
 use App\Models\InboxReceiverCorrection;
@@ -13,6 +15,8 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class InboxQuery
 {
+    use KafkaTrait;
+
     /**
      * @param $rootValue
      * @param array                                                    $args
@@ -35,6 +39,14 @@ class InboxQuery
 
         $inboxReceiver->StatusReceive = 'read';
         $inboxReceiver->save();
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $inboxReceiver->NId
+            ]
+        ]);
 
         return $inboxReceiver;
     }

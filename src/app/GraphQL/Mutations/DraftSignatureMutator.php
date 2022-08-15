@@ -7,10 +7,12 @@ use App\Enums\DraftConceptStatusTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\InboxReceiverCorrectionTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleIsActiveEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\DraftTrait;
+use App\Http\Traits\KafkaTrait;
 use App\Http\Traits\SendNotificationTrait;
 use App\Http\Traits\SignatureTrait;
 use App\Models\Draft;
@@ -32,6 +34,7 @@ class DraftSignatureMutator
     use DraftTrait;
     use SendNotificationTrait;
     use SignatureTrait;
+    use KafkaTrait;
 
     /**
      * @param  null  $_
@@ -245,6 +248,14 @@ class DraftSignatureMutator
         $InboxReceiver = InboxReceiver::where('NId', $draft->NId_Temp)
                                         ->where('RoleId_To', auth()->user()->RoleId)
                                         ->update(['Status' => 1,'StatusReceive' => 'read']);
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $draft->NId_Temp
+            ]
+        ]);
         return $InboxReceiver;
     }
 
