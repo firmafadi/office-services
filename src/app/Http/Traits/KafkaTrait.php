@@ -28,14 +28,19 @@ trait KafkaTrait
 
         $data['medium']     = 'mobile';
         $data['timestamp']  = time();
-        if (auth()->user()) {
-            $data['session_userdata'] = auth()->user();
+        if (auth()->check()) {
+            $user = auth()->user();
+            $session_userdata = json_decode(json_encode(auth()->user()), true);
+            $session_userdata['roleDesc'] = $user->role->RoleDesc;
+            $session_userdata['department'] = $user->role->rolecode->rolecode_sort;
+            $data['session_userdata'] = $session_userdata;
         }
 
         $message = new Message(body: $data);
         /** @var \Junges\Kafka\Producers\ProducerBuilder $producer */
-        // $producer = Kafka::publishOn($topic)->withMessage($message);
-        $producer = Kafka::publishOn('analytic_event')->withBodyKey('medium', 'mobile');
+        $producer = Kafka::publishOn($topic)
+            ->withConfigOptions(['compression.type' => 'none'])
+            ->withMessage($message);
 
         Log::info('Start publish messages to Kafka.');
         $producer->send();
