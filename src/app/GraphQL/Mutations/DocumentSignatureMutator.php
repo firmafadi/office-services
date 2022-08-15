@@ -5,11 +5,13 @@ namespace App\GraphQL\Mutations;
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Http\Traits\SignatureTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureForward;
 use App\Models\DocumentSignatureSent;
@@ -25,6 +27,7 @@ class DocumentSignatureMutator
 {
     use SendNotificationTrait;
     use SignatureTrait;
+    use KafkaTrait;
 
     /**
      * @param $rootValue
@@ -41,6 +44,14 @@ class DocumentSignatureMutator
         $documentSignatureSent = DocumentSignatureSent::findOrFail($documentSignatureSentId);
 
         if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'document_approve',
+                'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_ALREADY_SIGNED(),
+                'letter' => [
+                    'id' => $documentSignatureSentId
+                ],
+                'message' => 'Document already signed'
+            ]);
             throw new CustomException('Dokumen telah ditandatangani', 'Dokumen ini telah ditandatangani oleh Anda');
         }
 
@@ -48,15 +59,38 @@ class DocumentSignatureMutator
         $file = $this->fileExist($documentSignatureSent->documentSignature->url);
 
         if (!$file) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'document_approve',
+                'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_NOFILE(),
+                'letter' => [
+                    'id' => $documentSignatureSentId
+                ],
+                'message' => 'Document not found'
+            ]);
             throw new CustomException('Dokumen tidak tersedia', 'Dokumen yang akan ditandatangi tidak tersedia');
         }
 
         $checkUser = json_decode($this->checkUserSignature($setupConfig));
         if ($checkUser->status_code != 1111) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'document_approve',
+                'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_NIK(),
+                'letter' => [
+                    'id' => $documentSignatureSentId
+                ],
+                'message' => 'Invalid User NIK'
+            ]);
             throw new CustomException('Invalid NIK User', 'NIK User tidak terdaftar, silahkan hubungi administrator');
         }
 
         $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase);
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'document_approve',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'id' => $documentSignatureSentId
+            ],
+        ]);
         return $signature;
     }
 
