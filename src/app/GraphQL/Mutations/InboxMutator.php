@@ -6,9 +6,11 @@ use App\Enums\ActionLabelTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\InboxOriginTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleProposedTypeEnum;
 use App\Enums\PeopleRoleIdTypeEnum;
+use App\Http\Traits\KafkaTrait;
 use App\Http\Traits\SendNotificationTrait;
 use App\Models\Draft;
 use App\Models\Inbox;
@@ -23,6 +25,7 @@ use Carbon\Carbon;
 class InboxMutator
 {
     use SendNotificationTrait;
+    use KafkaTrait;
 
     /**
      * @param $rootValue
@@ -72,6 +75,16 @@ class InboxMutator
         ) {
             $this->actionNotification($inboxData, $action);
         }
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => $action,
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $inboxData['inboxId'],
+                'receivers_ids' => $inboxData['receiversIds']
+            ]
+        ]);
+
         return $inboxReceivers;
     }
 
