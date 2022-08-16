@@ -65,22 +65,22 @@ class InboxFileType
     }
 
     /**
-     * @param Object $draft
+     * @param Object $data
      *
      * @return Array
      */
-    protected function getSigners($draft)
+    protected function getSigners($data)
     {
-        $signers = People::whereIn('PeopleId', function ($inboxReceiverCorrection) use ($draft) {
+        $signers = People::whereIn('PeopleId', function ($inboxReceiverCorrection) use ($data) {
                         $inboxReceiverCorrection->select('From_Id')
                                                 ->from('inbox_receiver_koreksi')
-                                                ->where('Nid', $draft->NId)
+                                                ->where('Nid', $data->NId)
                                                 ->where('ReceiverAs', InboxReceiverCorrectionTypeEnum::SIGNED()->value);
         })->get();
 
         if ($signers->isEmpty()) {
-            $documentSignature = DocumentSignature::where('file', $draft->FileName_fake)
-                                                ->orWhere('file', $draft->FileName_real)
+            $documentSignature = DocumentSignature::where('file', $data->FileName_fake)
+                                                ->orWhere('file', $data->FileName_real)
                                                 ->first();
             $signers = People::whereIn('PeopleId', function ($query) use ($documentSignature) {
                 $query->select('PeopleIDTujuan')
@@ -89,6 +89,29 @@ class InboxFileType
                     ->where('ttd_id', $documentSignature->id)
                     ->whereIn('PeopleIDTujuan', $documentSignature->documentSignatureSents->pluck('PeopleIDTujuan'));
             })->get();
+
+            if ($documentSignature->is_signed_self == true) {
+                $signers = $this->addSelfSignature($documentSignature, $signers);
+            }
+        }
+
+        return $signers;
+    }
+
+    /**
+     * addSelfSignature
+     *
+     * @param  mixed $documentSignature
+     * @param  mixed $signers
+     * @return void
+     */
+    protected function addSelfSignature($documentSignature, $signers)
+    {
+        $selfSigned = People::where('PeopleId', $documentSignature->PeopleID)->get();
+        if (count($signers) > 0) {
+            $signers = $signers->merge($selfSigned);
+        } else {
+            $signers = $selfSigned;
         }
 
         return $signers;
