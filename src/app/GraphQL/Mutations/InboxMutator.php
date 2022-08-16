@@ -4,8 +4,13 @@ namespace App\GraphQL\Mutations;
 
 use App\Enums\ActionLabelTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
+use App\Enums\FcmNotificationListTypeEnum;
+use App\Enums\InboxOriginTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleProposedTypeEnum;
+use App\Enums\PeopleRoleIdTypeEnum;
+use App\Http\Traits\KafkaTrait;
 use App\Http\Traits\SendNotificationTrait;
 use App\Models\Draft;
 use App\Models\Inbox;
@@ -20,6 +25,7 @@ use Carbon\Carbon;
 class InboxMutator
 {
     use SendNotificationTrait;
+    use KafkaTrait;
 
     /**
      * @param $rootValue
@@ -69,6 +75,16 @@ class InboxMutator
         ) {
             $this->actionNotification($inboxData, $action);
         }
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => $action,
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $inboxData['inboxId'],
+                'receivers_ids' => $inboxData['receiversIds']
+            ]
+        ]);
+
         return $inboxReceivers;
     }
 
@@ -183,19 +199,28 @@ class InboxMutator
         $inbox = $this->definePrimaryModel($action, $inboxData['inboxId']);
         $dept = $inbox->createdBy->role->rolecode->rolecode_sort;
         $sender = auth()->user()->PeopleName;
+        $receiver = People::find($inboxData['receiversIds'][0]);
+
         $title = '';
         $body = $dept . ' telah mengirimkan surat terkait dengan ' . $inbox->Hal;
+        $list = FcmNotificationListTypeEnum::INBOX_INTERNAL();
 
         if ($action == PeopleProposedTypeEnum::FORWARD()) {
             $actionMessage = FcmNotificationActionTypeEnum::INBOX_DETAIL();
+            if (!$this->isSameDepartment(auth()->user(), $receiver)) {
+                $list = FcmNotificationListTypeEnum::INBOX_REGIONAL();
+            }
+            $list = $this->getGovernorNotifList($list, $receiver->PrimaryRoleId, $inbox);
         } elseif ($action == PeopleProposedTypeEnum::DISPOSITION()) {
             $title = 'Disposisi Naskah';
             $body = $sender . ' telah mendisposisikan ' . $inbox->type->JenisName . ' terkait dengan ' . $inbox->Hal;
             $actionMessage = FcmNotificationActionTypeEnum::DISPOSITION_DETAIL();
+            $list = $this->getGovernorNotifList($list, $receiver->PrimaryRoleId, $inbox);
         } elseif ($this->isDraftScope($action)) {
             $title = 'Review Naskah';
             $body = 'Terdapat ' . $inbox->type->JenisName . ' terkait dengan ' . $inbox->Hal . ' yang harus segera Anda periksa';
             $actionMessage = FcmNotificationActionTypeEnum::DRAFT_DETAIL();
+            $list = FcmNotificationListTypeEnum::DRAFT_INSIDE();
         }
 
         $body = $body . '. Klik disini untuk membaca dan menindaklanjuti pesan.';
@@ -213,6 +238,7 @@ class InboxMutator
                 'groupId' => $peopleId . $date,
                 'peopleIds' => $inboxData['receiversIds'],
                 'action' => $actionMessage,
+                'list' => $list,
             ]
         ];
 
@@ -447,5 +473,36 @@ class InboxMutator
             PeopleProposedTypeEnum::NUMBERING_TU()->value   => true,
             default                                         => false
         };
+    }
+
+    /**
+     * Check if the sender and the receiver are the same department
+     * @param Object $sender
+     * @param Object $receiver
+     *
+     * @return Boolean
+     */
+    private function isSameDepartment($sender, $receiver)
+    {
+        return ($sender->role->rolecode == $receiver->role->rolecode);
+    }
+
+    /**
+     * Define governor notification list type
+     * @param FcmNotificationListTypeEnum $list
+     * @param String $receiverRoleId
+     * @param Inbox $inbox
+     *
+     * @return Void
+     */
+    private function getGovernorNotifList($list, $receiverRoleId, $inbox)
+    {
+        if ($receiverRoleId == PeopleRoleIdTypeEnum::GOVERNOR()) {
+            $list = FcmNotificationListTypeEnum::INBOX_INTERNAL_GUB();
+            if ($inbox->AsalNaskah == InboxOriginTypeEnum::EXTERNAL()) {
+                $list = FcmNotificationListTypeEnum::INBOX_EXTERNAL_GUB();
+            }
+        }
+        return $list;
     }
 }

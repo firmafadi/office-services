@@ -3,11 +3,15 @@
 namespace App\GraphQL\Mutations;
 
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
+use App\Enums\FcmNotificationActionTypeEnum;
+use App\Enums\FcmNotificationListTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Http\Traits\SignatureTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureForward;
 use App\Models\DocumentSignatureSent;
@@ -15,6 +19,7 @@ use App\Models\People;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,6 +27,7 @@ class DocumentSignatureMutator
 {
     use SendNotificationTrait;
     use SignatureTrait;
+    use KafkaTrait;
 
     /**
      * @param $rootValue
@@ -37,31 +43,40 @@ class DocumentSignatureMutator
         $passphrase = Arr::get($args, 'input.passphrase');
         $documentSignatureSent = DocumentSignatureSent::findOrFail($documentSignatureSentId);
 
+        $logData = [
+            'event' => 'document_approve',
+            'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_ALREADY_SIGNED(),
+            'letter' => [
+                'id' => $documentSignatureSentId
+            ],
+        ];
+
         if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
-            throw new CustomException('User already signed this document', 'Status of this document is already signed');
-        }
-
-        $checkParent = DocumentSignatureSent::where('ttd_id', $documentSignatureSent->ttd_id)
-            ->where('urutan', $documentSignatureSent->urutan - 1)
-            ->first();
-
-        if ($checkParent && $checkParent->status != SignatureStatusTypeEnum::SUCCESS()->value) {
-            throw new CustomException('Parent user is not already signed this document', 'Parent user of list signature assign is not already signed');
+            $logData['message'] = 'Document already signed';
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException('Dokumen telah ditandatangani', 'Dokumen ini telah ditandatangani oleh Anda');
         }
 
         $setupConfig = $this->setupConfigSignature();
         $file = $this->fileExist($documentSignatureSent->documentSignature->url);
 
         if (!$file) {
-            throw new CustomException('Document not found', 'Document signature not found at website server');
+            $logData['message'] = 'Document not found';
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException('Dokumen tidak tersedia', 'Dokumen yang akan ditandatangi tidak tersedia');
         }
 
         $checkUser = json_decode($this->checkUserSignature($setupConfig));
         if ($checkUser->status_code != 1111) {
-            throw new CustomException('Invalid user', 'Invalid credential user, please check your passphrase again');
+            $logData['message'] = 'Invalid User NIK';
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException('Invalid NIK User', 'NIK User tidak terdaftar, silahkan hubungi administrator');
         }
 
         $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase);
+        $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
+        $this->kafkaPublish('analytic_event', $logData);
+
         return $signature;
     }
 
@@ -78,50 +93,48 @@ class DocumentSignatureMutator
         $url = $setupConfig['url'] . '/api/sign/pdf';
         $newFileName = $data->documentSignature->document_file_name;
         $verifyCode = strtoupper(substr(sha1(uniqid(mt_rand(), true)), 0, 10));
-        $pdfFile = $this->pdfFile($data, $newFileName, $verifyCode);
+        $pdfFile = $this->pdfFile($data, $verifyCode);
 
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Basic ' . $setupConfig['auth'],
-                'Cookie' => 'JSESSIONID=' . $setupConfig['cookies'],
-            ])->attach(
-                'file',
-                $pdfFile,
-                $data->documentSignature->file
-            )->post($url, [
-                'nik'           => $setupConfig['nik'],
-                'passphrase'    => $passphrase,
-                'tampilan'      => 'invisible',
-                'image'         => 'false',
-            ]);
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $setupConfig['auth'],
+            'Cookie' => 'JSESSIONID=' . $setupConfig['cookies'],
+        ])->attach(
+            'file',
+            $pdfFile,
+            $data->documentSignature->file
+        )->post($url, [
+            'nik'           => $setupConfig['nik'],
+            'passphrase'    => $passphrase,
+            'tampilan'      => 'invisible',
+            'image'         => 'false',
+        ]);
 
-            if ($response->status() != Response::HTTP_OK) {
-                throw new CustomException('Document failed', 'Signature failed, check your file again');
-            } else {
-                //Save new file & update status
-                $data = $this->saveNewFile($response, $data, $newFileName, $verifyCode);
-            }
+        if ($response->status() != Response::HTTP_OK) {
+            $bodyResponse = json_decode($response->body());
             //Save log
-            $this->createPassphraseSessionLog($response);
-
-            return $data;
-        } catch (\Throwable $th) {
-            throw new CustomException('Connect API for sign document failed', $th->getMessage());
+            $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+            throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
+        } else {
+            //Save new file & update status
+            $data = $this->saveNewFile($response, $data, $newFileName, $verifyCode);
         }
+        //Save log
+        $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+
+        return $data;
     }
 
     /**
      * pdfFile
      *
      * @param  mixed $data
-     * @param  mixed $newFileName
      * @param  mixed $verifyCode
-     * @return void
+     * @return mixed
      */
-    protected function pdfFile($data, $newFileName, $verifyCode)
+    protected function pdfFile($data, $verifyCode)
     {
         if ($data->documentSignature->has_footer == false) {
-            $pdfFile = $this->addFooterDocument($data, $newFileName, $verifyCode);
+            $pdfFile = $this->addFooterDocument($data, $verifyCode);
         } else {
             $pdfFile = file_get_contents($data->documentSignature->url);
         }
@@ -153,16 +166,12 @@ class DocumentSignatureMutator
         //save to storage path for temporary file
         Storage::disk('local')->put($newFileName, $pdf->body());
 
-        try {
-            //transfer to existing service
-            $response = $this->doTransferFile($newFileName);
-            if ($response->status() != Response::HTTP_OK) {
-                throw new CustomException('Webhook failed', json_decode($response));
-            } else {
-                $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode);
-            }
-        } catch (\Throwable $th) {
-            throw new CustomException('Connect API for webhook store file failed', $th->getMessage());
+        //transfer to existing service
+        $response = $this->doTransferFile($data, $newFileName);
+        if ($response->status() != Response::HTTP_OK) {
+            throw new CustomException('Gagal menyambung ke webhook API', 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali');
+        } else {
+            $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode);
         }
 
         Storage::disk('local')->delete($newFileName);
@@ -173,21 +182,53 @@ class DocumentSignatureMutator
     /**
      * doTransferFile
      *
+     * @param  collection $data
      * @param  string $newFileName
      * @return mixed
      */
-    public function doTransferFile($newFileName)
+    protected function doTransferFile($data, $newFileName)
     {
+        // setup body request
+        $documentRequest = [
+            'first_tier' => false,
+            'last_tier' => false,
+            'document_name' => $data->documentSignature->file // original name file before renamed
+        ];
+        // check if this esign is first tier
+        if ($data->urutan == 1) {
+            $documentRequest['first_tier'] = true;
+        }
+
         $fileSignatured = fopen(Storage::path($newFileName), 'r');
+        /**
+         * This code will running :
+         * Transfer file to service existing
+         * Remove original file (first tier)
+        **/
         $response = Http::withHeaders([
             'Secret' => config('sikd.webhook_secret'),
         ])->attach(
             'signature',
             $fileSignatured,
             $newFileName
-        )->post(config('sikd.webhook_url'));
+        )->post(config('sikd.webhook_url'), $documentRequest);
 
         return $response;
+    }
+
+    /**
+     * findNextDocumentSent
+     *
+     * @param  collection $data
+     * @return collection
+     */
+    protected function findNextDocumentSent($data)
+    {
+        $nextDocumentSent = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
+                                                    ->where('urutan', $data->urutan + 1)
+                                                    ->first();
+
+        return $nextDocumentSent;
     }
 
     /**
@@ -199,46 +240,44 @@ class DocumentSignatureMutator
      */
     protected function updateDocumentSentStatus($data, $newFileName, $verifyCode)
     {
-        //change filename with _signed & update stastus
-        if ($data->documentSignature->has_footer == false) {
-            $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
-                'file' => $newFileName,
-                'code' => $verifyCode,
-                'has_footer' => true,
-            ]);
-        }
-
-        //update status document sent to 1 (signed)
-        $updateDocumentSent = tap(DocumentSignatureSent::where('id', $data->id))->update([
-            'status' => SignatureStatusTypeEnum::SUCCESS()->value,
-            'next' => 1,
-            'tgl_ttd' => setDateTimeNowValue(),
-            'is_sender_read' => false
-        ])->first();
-
-        //check if any next siganture require
-        $nextDocumentSent = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
-                                                ->where('urutan', $data->urutan + 1)
-                                                ->first();
-        if ($nextDocumentSent) {
-            DocumentSignatureSent::where('id', $nextDocumentSent->id)->update([
-                'next' => 1
-            ]);
-            //Send notification to next people
-            $this->doSendNotification($nextDocumentSent->id);
-        } else { // if this is last people
-            $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
-                'status' => SignatureStatusTypeEnum::SUCCESS()->value,
-            ]);
-            $documentSignatureForwardIds = $this->doForward($data);
-            if (!$documentSignatureForwardIds) {
-                throw new CustomException(
-                    'Forward document failed',
-                    'Return ids is missing. Please try again.'
-                );
+        DB::beginTransaction();
+        try {
+            //change filename with _signed & update stastus
+            if ($data->documentSignature->has_footer == false) {
+                $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
+                    'file' => $newFileName,
+                    'code' => $verifyCode,
+                    'has_footer' => true,
+                ]);
             }
-            //Send notification to sender
-            $this->doSendForwardNotification($data->id, $data->receiver->PeopleName);
+
+            //update status document sent to 1 (signed)
+            $updateDocumentSent = tap(DocumentSignatureSent::where('id', $data->id))->update([
+                'status' => SignatureStatusTypeEnum::SUCCESS()->value,
+                'next' => 1,
+                'tgl_ttd' => setDateTimeNowValue(),
+                'is_sender_read' => false
+            ])->first();
+
+            //check if any next siganture require
+            $nextDocumentSent = $this->findNextDocumentSent($data);
+            if ($nextDocumentSent) {
+                DocumentSignatureSent::where('id', $nextDocumentSent->id)->update([
+                    'next' => 1
+                ]);
+                //Send notification to next people
+                $this->doSendNotification($nextDocumentSent->id);
+            } else { // if this is last people
+                $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
+                    'status' => SignatureStatusTypeEnum::SUCCESS()->value,
+                ]);
+                //Send notification to sender
+                $this->doSendForwardNotification($data->id, $data->receiver->PeopleName);
+            }
+            DB::commit();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw new CustomException('Gagal menyimpan perubahan data', $th->getMessage());
         }
 
         return $updateDocumentSent;
@@ -259,7 +298,9 @@ class DocumentSignatureMutator
             ],
             'data' => [
                 'documentSignatureSentId' => $nextDocumentSentId,
-                'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER()
+                'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
+                'action' => FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL(),
+                'list' => FcmNotificationListTypeEnum::SIGNATURE()
             ]
         ];
 
@@ -269,23 +310,26 @@ class DocumentSignatureMutator
     /**
      * addFooterDocument
      *
-     * @param  mixed $data
-     * @param  mixed $newFileName
-     * @return void
+     * @param  mixed  $data
+     * @param  string $verifyCode
+     * @return mixed
      */
-    protected function addFooterDocument($data, $newFileName, $verifyCode)
+    protected function addFooterDocument($data, $verifyCode)
     {
         try {
-            $addFooter = Http::post(config('sikd.add_footer_url'), [
-                'pdf' => $data->documentSignature->url,
-                'qrcode' => config('sikd.url') . 'FilesUploaded/ttd/sudah_ttd/' . $newFileName,
+            $addFooter = Http::attach(
+                'pdf',
+                file_get_contents($data->documentSignature->url),
+                $data->documentSignature->file
+            )->post(config('sikd.add_footer_url'), [
+                'qrcode' => config('sikd.url') . 'verification/document/tte/' . $verifyCode . '?source=qrcode',
                 'category' => $data->documentSignature->documentSignatureType->document_paper_type,
                 'code' => $verifyCode
             ]);
 
             return $addFooter;
         } catch (\Throwable $th) {
-            throw new CustomException('Add footer document failed', $th->getMessage());
+            throw new CustomException('Gagal menambahkan QRCode dan text footer', 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali');
         }
     }
 
@@ -305,7 +349,9 @@ class DocumentSignatureMutator
             ],
             'data' => [
                 'documentSignatureSentId' => $id,
-                'target' => DocumentSignatureSentNotificationTypeEnum::SENDER()
+                'target' => DocumentSignatureSentNotificationTypeEnum::SENDER(),
+                'action' => FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL(),
+                'list' => FcmNotificationListTypeEnum::SIGNATURE()
             ]
         ];
 
@@ -358,27 +404,79 @@ class DocumentSignatureMutator
         $type = optional($documentSignatureSent->documentSignature->documentSignatureType)->document_forward_target;
         switch ($type) {
             case 'UK':
+                $receiver = People::whereHas('role', function ($role) use ($documentSignatureSent) {
+                    $role->where('RoleCode', $documentSignatureSent->sender->role->RoleCode);
+                    if (!in_array($documentSignatureSent->sender->PrimaryRoleId, array('uk.1', 'uk.1.1.1'))) {
+                        $role->where('GRoleId', $documentSignatureSent->sender->role->GRoleId);
+                    }
+                })->where('GroupId', PeopleGroupTypeEnum::UK()->value)->pluck('PeopleId');
+                break;
             case 'TU':
-                if ($type == 'UK') {
-                    $peopleGroupType = PeopleGroupTypeEnum::UK()->value;
-                    $whereField = 'GRoleId';
-                    $whereParams = auth()->user()->role->GRoleId;
-                }
-                if ($type == 'TU') {
-                    $peopleGroupType = PeopleGroupTypeEnum::TU()->value;
-                    $whereField = 'Code_Tu';
-                    $whereParams = auth()->user()->role->Code_Tu;
-                }
-                $receiver = People::whereHas('role', function ($role) use ($whereField, $whereParams) {
-                    $role->where('RoleCode', auth()->user()->role->RoleCode);
-                    $role->where($whereField, $whereParams);
-                })->where('GroupId', $peopleGroupType)->pluck('PeopleId');
+                $receiver = $this->findPeopleRoleTUForwardReceiver($documentSignatureSent);
                 break;
 
             default:
                 $receiver = null;
                 break;
         }
+
+        return $receiver;
+    }
+
+    /**
+     * findPeopleRoleTUForwardReceiver
+     *
+     * @param  object $documentSignatureSent
+     * @return mixed
+     */
+    public function findPeopleRoleTUForwardReceiver($documentSignatureSent)
+    {
+        // Find people TU role with role id
+        $findByRoleId = $this->queryFindPeopleRoleTU($documentSignatureSent, 'RoleId', $documentSignatureSent->sender->PrimaryRoleId);
+        if (count($findByRoleId) != 0) {
+            return $findByRoleId;
+        }
+        // If still not exist
+        // Find people TU role with parent role id
+        $findByParentRoleId = $this->queryFindPeopleRoleTU($documentSignatureSent, 'RoleId', $documentSignatureSent->sender->RoleAtasan);
+        if (count($findByParentRoleId) != 0) {
+            return $findByParentRoleId;
+        }
+        // If still not exist
+        // Find people TU role with tiered top parent role id
+        $foundTUAccount              = false;
+        $removeRolePattern           = 2; // substr last string, remove number and dots from role id
+        $findByTieredTopParentRoleId = null;
+        do {
+            // example uk.1.2.3.4.5 will be uk.1.2.3.4
+            $TieredTopParentRoleId = substr($documentSignatureSent->sender->PrimaryRoleId, 0, -$removeRolePattern);
+
+            $findByTieredTopParentRoleId = $this->queryFindPeopleRoleTU($documentSignatureSent, 'RoleId', $TieredTopParentRoleId);
+            if (count($findByTieredTopParentRoleId) != 0) {
+                $foundTUAccount = true;
+            } else {
+                $foundTUAccount = false;
+                $removeRolePattern = $removeRolePattern + 2; // add 2 number for remove number and dots from role id
+            }
+        } while ($foundTUAccount == false);
+
+        return $findByTieredTopParentRoleId;
+    }
+
+    /**
+     * queryFindPeopleRoleTU
+     *
+     * @param  object $documentSignatureSent
+     * @param  string $whereField
+     * @param  string $whereParams
+     * @return mixed
+     */
+    public function queryFindPeopleRoleTU($documentSignatureSent, $whereField, $whereParams)
+    {
+        $receiver = People::whereHas('role', function ($role) use ($documentSignatureSent, $whereField, $whereParams) {
+            $role->where('RoleCode', $documentSignatureSent->sender->role->RoleCode);
+            $role->where($whereField, $whereParams);
+        })->where('GroupId', PeopleGroupTypeEnum::TU()->value)->pluck('PeopleId');
 
         return $receiver;
     }

@@ -20,14 +20,65 @@ class DocumentSignature extends Model
     public function getUrlAttribute()
     {
         $path = config('sikd.base_path_file');
-        $file = $path . 'ttd/sudah_ttd/' . $this->file;
-        $headers = @get_headers($file);
-        if ($headers && in_array('Content-Type: application/pdf', $headers)) {
-            $file = $file;
-        } else {
+        $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
+        if ($file == false) {
             $file = $path . 'ttd/blm_ttd/' . $this->file;
         }
         return $file;
+    }
+
+    public function getUrlPublicAttribute()
+    {
+        $path = config('sikd.base_path_file');
+        // New data with registered flow
+        if ($this->is_registered === true) {
+            $file = $path . 'ttd/sudah_ttd/' . $this->file;
+        } elseif ($this->is_registered === false && $this->is_registered !== null) {
+            $file = $path . 'ttd/draft/' . $this->tmp_draft_file;
+        } else {
+            // Old data without registered flow
+            $file = $this->checkFile($path . 'ttd/draft/' . $this->tmp_draft_file);
+            if ($file === false) {
+                $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
+                if ($file === false) { // handle for old data before draft schema implemented
+                    $file = $path . 'ttd/blm_ttd/' . $this->file;
+                }
+            }
+        }
+        return $file;
+    }
+
+    public function checkFile($file)
+    {
+        $headers = @get_headers($file);
+        if ($headers && in_array('Content-Type: application/pdf', $headers)) {
+            return $file;
+        }
+        return false;
+    }
+
+    public function getCanDownloadAttribute()
+    {
+        // New data with registered flow
+        if ($this->is_registered != null && $this->is_registered == true) {
+            return true;
+        }
+        // Old data without registered flow
+        if ($this->is_registered == null && str_contains($this->url_public, 'sudah_ttd')) {
+            return true;
+        }
+        // Default response document can't download
+        return false;
+    }
+
+    public function getAttachmentAttribute()
+    {
+        if ($this->lampiran != null) {
+            $path = config('sikd.base_path_file');
+            return $path . 'ttd/lampiran/' . $this->lampiran;
+        }
+
+        return null;
     }
 
     public function people()

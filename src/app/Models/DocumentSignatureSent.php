@@ -43,6 +43,16 @@ class DocumentSignatureSent extends Model
         return $this->belongsTo(People::class, 'PeopleID', 'PeopleId');
     }
 
+    public function previous()
+    {
+        return $this->belongsTo(People::class, 'previous_sender_id', 'PeopleId');
+    }
+
+    public function forward()
+    {
+        return $this->belongsTo(People::class, 'forward_receiver_id', 'PeopleId');
+    }
+
     public function receiverPersonalAccessTokens()
     {
         return $this->hasMany(PersonalAccessToken::class, 'tokenable_id', 'PeopleIDTujuan');
@@ -113,7 +123,7 @@ class DocumentSignatureSent extends Model
                     ->pluck('id');
         }
 
-        $query->whereIn('id', Arr::collapse([$withReceiverId, $withSenderId]));
+        $query->whereIn('id', Arr::collapse([$withReceiverId, $withSenderId]))->where('next', 1);
 
         $this->filterByStatus($query, $filter);
         return $query;
@@ -167,6 +177,7 @@ class DocumentSignatureSent extends Model
     public function outboxFilter($query, $filter)
     {
         $this->filterByStatus($query, $filter);
+        $this->filterByType($query, $filter);
         return $query;
     }
 
@@ -176,6 +187,18 @@ class DocumentSignatureSent extends Model
         if ($statuses || $statuses == '0') {
             $arrayStatuses = explode(", ", $statuses);
             $query->whereIn('status', $arrayStatuses);
+        }
+    }
+
+    private function filterByType($query, $filter)
+    {
+        $types = $filter['types'] ?? null;
+        if ($types) {
+            $arrayTypes = explode(', ', $types);
+            $query->whereHas(
+                'documentSignature',
+                fn ($query) => $query->whereIn('type_id', $arrayTypes)
+            );
         }
     }
 }

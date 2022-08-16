@@ -6,6 +6,7 @@ use App\Enums\InboxFilterTypeEnum;
 use App\Enums\InboxReceiverScopeType;
 use App\Enums\ListTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
+use App\Enums\PeopleRoleIdTypeEnum;
 use Illuminate\Support\Arr;
 
 /**
@@ -129,11 +130,9 @@ trait InboxFilterTrait
     private function nondispositionQuery($query, $arrayReceiverTypes)
     {
         $query->where(fn($query) => $query
-            ->where('ReceiverAs', 'not like', 'to_draft%')
-            ->where('ReceiverAs', '!=', 'bcc')
-            ->where('ReceiverAs', '!=', 'cc1')
+            ->whereIn('ReceiverAs', $this->nonDispositionReceiverAsLabel())
             ->where(fn($query) => $query
-                ->whereHas('sender', fn($query) => $query->where('GroupId', '!=', PeopleGroupTypeEnum::UK()))
+                ->whereRelation('sender', 'GroupId', '!=', PeopleGroupTypeEnum::UK())
                 ->orWhere('ReceiverAs', '!=', 'to_forward'))
             ->orWhereIn('ReceiverAs', $arrayReceiverTypes));
     }
@@ -155,11 +154,15 @@ trait InboxFilterTrait
         if ($scope) {
             switch ($scope) {
                 case InboxReceiverScopeType::REGIONAL():
-                    $this->queryRegionalScope($query);
+                    $this->queryRegionalScope($query, $filter);
                     break;
 
                 case InboxReceiverScopeType::INTERNAL():
-                    $this->queryInternalScope($query);
+                    $this->queryInternalScope($query, $filter);
+                    break;
+
+                case InboxReceiverScopeType::EXTERNAL():
+                    $this->queryExternalScope($query);
                     break;
             }
         }
@@ -184,32 +187,84 @@ trait InboxFilterTrait
 
     /**
      * Query REGIONAL scope filter
-     * Letters sent by UK
+     * Letters forwarded by UK
+     * Letters sent by different user role code
      *
      * @param Object $query
-     * @param String $groupRole
-     * @param String $deptId
+     * @param Array $filter
      *
      * @return Void
      */
-    private function queryRegionalScope($query)
+    private function queryRegionalScope($query, $filter)
     {
-        $query->whereHas('sender', fn($query) => $query->where('GroupId', PeopleGroupTypeEnum::UK()));
+        $receiverTypes = $filter['receiverTypes'] ?? null;
+        $arrayReceiverTypes = explode(', ', $receiverTypes);
+        if ($receiverTypes && $arrayReceiverTypes[0] == 'to_forward') {
+            $query->whereRelation('sender', 'GroupId', '=', PeopleGroupTypeEnum::UK());
+        } else {
+            $query->whereRelation('sender.role', 'RoleCode', '!=', auth()->user()->role->RoleCode);
+        }
     }
 
     /**
      * Query INTERNAL scope filter
-     * Letter sent not by UK
+     * Letters forwarded not by UK
+     * Letters sent by the same user role code
      *
      * @param Object $query
-     * @param String $groupRole
-     * @param String $deptId
+     * @param Array $filter
      *
      * @return Void
      */
-    private function queryInternalScope($query)
+    private function queryInternalScope($query, $filter)
     {
-        $query->whereHas('sender', fn($query) => $query->where('GroupId', '!=', PeopleGroupTypeEnum::UK()));
+        $receiverTypes = $filter['receiverTypes'] ?? null;
+        $arrayReceiverTypes = explode(', ', $receiverTypes);
+        $userRoleId = auth()->user()->PrimaryRoleId;
+        if ($userRoleId == PeopleRoleIdTypeEnum::GOVERNOR()) {
+            $this->queryInternalScopeGovernor($query);
+        } elseif ($receiverTypes && $arrayReceiverTypes[0] == 'to_forward') {
+            $query->whereRelation('sender', 'GroupId', '!=', PeopleGroupTypeEnum::UK());
+        } else {
+            $query->whereRelation('sender.role', 'RoleCode', '=', auth()->user()->role->RoleCode);
+        }
+    }
+
+    /**
+     * Query EXTERNAL scope filter
+     * Letters sent from external West Java government
+     *
+     * @param Object $query
+     *
+     * @return Void
+     */
+    private function queryExternalScope($query)
+    {
+        $query->where('ReceiverAs', 'to')
+            ->whereRelation('inboxDetail', 'AsalNaskah', '=', 'eksternal');
+    }
+
+    /**
+     * Query INTERNAL scope filter for Governor
+     *
+     * @param Object $query
+     *
+     * @return Void
+     */
+    private function queryInternalScopeGovernor($query)
+    {
+        $query->where(
+            fn($query) => $query
+                ->whereNotIn('ReceiverAs', ['bcc', 'to'])
+                ->where('ReceiverAs', 'not like', 'to_draft%')
+                ->orWhere(
+                    fn($query) => $query
+                        ->where('ReceiverAs', 'to')
+                        ->whereHas('inboxDetail', fn($query) => $query
+                            ->whereNull('AsalNaskah')
+                            ->orWhere('AsalNaskah', '!=', 'eksternal'))
+                )
+        );
     }
 
     /**
@@ -359,5 +414,27 @@ trait InboxFilterTrait
     private function urgencyQuery($query, $keysFilter)
     {
         $query->select('UrgensiId')->from('master_urgensi')->whereIn('UrgensiName', $keysFilter);
+    }
+
+    /**
+     * ReceiverAs labels for nondisposition letter
+     * @return Array
+     */
+    private function nonDispositionReceiverAsLabel()
+    {
+        return [
+            'to',
+            'koreksi',
+            'to_edaran',
+            'to_forward',
+            'to_keluar',
+            'to_notadinas',
+            'to_pengumuman',
+            'to_rekomendasi',
+            'to_sket',
+            'to_sprint',
+            'to_super_tugas_keluar',
+            'to_surat_izin_keluar'
+        ];
     }
 }

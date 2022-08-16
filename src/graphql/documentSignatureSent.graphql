@@ -11,8 +11,12 @@ type DocumentSignatureSent {
     next: String
     sender: People! @with(relation: "sender")
     receiver: People! @with(relation: "receiver")
+    previous: People @with(relation: "previous")
+    forward: People @with(relation: "forward")
     read: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isRead")
     statusRead: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@statusRead")
+    senderRead: Boolean @rename(attribute: "is_sender_read")
+    receiverRead: Boolean @rename(attribute: "is_receiver_read")
     isLastSigned: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isLastSigned")
     parent: DocumentSignatureSent @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@parent")
     documentSignature: DocumentSignature @belongsTo
@@ -23,10 +27,17 @@ type DocumentSignatureSentTimelines {
 }
 
 type DocumentSignatureSentHistory {
-    documentSignatureDistribute: [InboxReceiver]
-    documentSignatureForward: [DocumentSignatureForward]
+    documentSignatureDistribute: DocumentSignatureDistribute
+    documentSignatureForward: DocumentSignatureSent
     documentSignatureSent: [DocumentSignatureSent]
     documentSignatureSelf: DocumentSignature
+}
+
+type DocumentSignatureDistribute {
+    data: [InboxReceiver]
+    distributed: Boolean
+    readDistributed: Boolean
+    typeDistributed: String
 }
 
 input documentSignatureSentsInput {
@@ -38,6 +49,7 @@ input documentSignatureSentsInput {
 
 input outboxDocumentSignatureSentsInput {
     statuses: String
+    types: String
 }
 
 input documentSignatureSentTimelineInput {
@@ -64,5 +76,4 @@ enum ObjectiveType {
 
 #import people.graphql
 #import documentSignature.graphql
-#import documentSignatureForward.graphql
 #import inboxReceiver.graphql

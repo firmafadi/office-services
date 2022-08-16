@@ -19,13 +19,15 @@ class LogUserActivity
      */
     public function handle(Request $request, Closure $next)
     {
-        $user = auth()->user()->PeopleId ?? null;
-        $data = [
-            'people_id' => $user,
-            'device' => 'mobile',
-            'action' => $request->input('query'),
-        ];
-        $this->saveLogActivity($data);
+        if (config('sikd.mysql_user_log_activity') == true) {
+            $user = auth()->user()->PeopleId ?? null;
+            $data = [
+                'people_id' => $user,
+                'device' => 'mobile',
+                'action' => $request->input('query'),
+            ];
+            $this->saveLogActivity($data);
+        }
         return $next($request);
     }
 }

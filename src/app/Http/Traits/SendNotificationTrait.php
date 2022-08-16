@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
+use App\Enums\FcmNotificationListTypeEnum;
 use App\Models\DocumentSignatureSent;
 use App\Models\InboxReceiver;
 use App\Models\InboxReceiverCorrection;
@@ -117,11 +118,10 @@ trait SendNotificationTrait
         $messageAttribute = [
             'registration_ids' => $token,
             'notification' => $request['notification'],
-            'data' => [
-                'id' => $record->id,
-                'action' => $action
-            ]
+            'data' => $request['data']
         ];
+
+        $messageAttribute['data']['id'] = $record->id;
 
         if (
             $action == FcmNotificationActionTypeEnum::DRAFT_DETAIL() ||
@@ -133,7 +133,8 @@ trait SendNotificationTrait
                 'receiverAs' => $record->ReceiverAs,
                 'letterNumber' => optional($record->draftDetail)->nosurat,
                 'draftStatus' => optional($record->draftDetail)->Konsep,
-                'action' => $action
+                'action' => $action,
+                'list' => FcmNotificationListTypeEnum::DRAFT_INSIDE(),
             ];
         }
 

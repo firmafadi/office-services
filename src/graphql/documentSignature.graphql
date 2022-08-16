@@ -4,8 +4,13 @@ type DocumentSignature {
     createdBy: People! @belongsTo(relation: "people")
     createdAt: String @rename(attribute: "tanggal")
     updatedAt: String @rename(attribute: "tanggal_update")
-    url: String
+    url: String @rename(attribute: "url_public")
+    canDownload: Boolean @rename(attribute: "canDownload")
     code: String
+    attachment: String
+    note: String @rename(attribute: "catatan")
+    registered: Boolean @rename(attribute: "is_registered")
+    conceptorRead: Boolean @rename(attribute: "is_conceptor_read")
     validation: Validation @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureType@validate")
     inboxFile: InboxFile @belongsTo
     documentSignatureSents: [DocumentSignatureSent]

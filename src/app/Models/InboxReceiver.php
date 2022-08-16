@@ -48,12 +48,14 @@ class InboxReceiver extends Model
     public function history($query, $filter)
     {
         return $query->where('NId', $filter['inboxId'])
+            ->whereNotIn('ReceiverAs', ['to_distributed', 'to_archive'])
             ->where(function ($query) use ($filter) {
                 if ($filter['withAuthCheck']) {
                     $query->whereIn('GIR_Id', function ($query) {
                         $query->select('GIR_Id')
                             ->from('inbox_receiver')
-                            ->where('RoleId_To', 'like', auth()->user()->PrimaryRoleId . '%');
+                            ->where('RoleId_To', 'like', auth()->user()->PrimaryRoleId . '%')
+                            ->orWhere('To_Id', auth()->user()->PeopleId);
                     })
                     ->orWhere('RoleId_From', 'like', auth()->user()->PrimaryRoleId . '%');
                 }
@@ -61,14 +63,15 @@ class InboxReceiver extends Model
             ->where(function ($query) use ($filter) {
                 $status = $filter['status'] ?? null;
                 $excludeStatus = $filter['excludeStatus'] ?? null;
+                $beforeAddMoreExcludeStatus = ($excludeStatus != null) ? ', ' : '';
+                $excludeStatus = $excludeStatus . $beforeAddMoreExcludeStatus . 'to_distributed, to_archive';
                 if ($status) {
                     $status = explode(', ', $status);
                     $query->whereIn('ReceiverAs', $status);
                 }
-                if ($excludeStatus) {
-                    $excludeStatus = explode(', ', $excludeStatus);
-                    $query->whereNotIn('ReceiverAs', $excludeStatus);
-                }
+
+                $excludeStatus = explode(', ', $excludeStatus);
+                $query->whereNotIn('ReceiverAs', $excludeStatus);
             });
     }
 
@@ -108,12 +111,12 @@ class InboxReceiver extends Model
     public function filter($query, $filter)
     {
         $this->filterByResource($query, $filter);
-        $this->filterByStatus($query, $filter);
         $this->filterByType($query, $filter, ListTypeEnum::INBOX_LIST());
         $this->filterByUrgency($query, $filter, ListTypeEnum::INBOX_LIST());
         $this->filterByFolder($query, $filter);
         $this->filterByForwardStatus($query, $filter);
         $this->filterByReceiverTypes($query, $filter);
+        $this->filterByStatus($query, $filter);
         $this->filterByScope($query, $filter);
         $this->filterByFollowedUpStatus($query, $filter);
         $this->filterByActionLabel($query, $filter);
@@ -122,11 +125,18 @@ class InboxReceiver extends Model
 
     public function search($query, $search)
     {
-        $query->whereIn('NId', function ($inboxQuery) use ($search) {
-            $inboxQuery->select('NId')
-            ->from('inbox')
-            ->where('Hal', 'LIKE', '%' . $search . '%');
-        });
+        if ($search) {
+            $query->whereIn(
+                'NId',
+                fn ($query) => $query
+                    ->select('NId')
+                    ->from('inbox')
+                    ->whereRaw(
+                        'MATCH(Hal) AGAINST(? IN BOOLEAN MODE)',
+                        [$search . '*']
+                    )
+            );
+        }
 
         return $query;
     }
@@ -135,6 +145,7 @@ class InboxReceiver extends Model
     {
         return InboxReceiver::where('NId', $this->NId)
                         ->where('GIR_Id', $this->GIR_Id)
+                        ->whereNotIn('ReceiverAs', ['to_distributed', 'to_archive'])
                         ->get();
     }
 
@@ -163,34 +174,51 @@ class InboxReceiver extends Model
 
     public function getReceiverAsLabelAttribute()
     {
-        $nonDispositionLabel = '';
-        if (
-            $this->inboxDetail->NTipe == InboxTypeEnum::INBOX()->value ||
-            $this->inboxDetail->NTipe == InboxTypeEnum::OUTBOXNOTADINAS()->value
-        ) {
-            $nonDispositionLabel = ' Non Disposisi';
+        $toLabel = 'Naskah Masuk';
+        if ($this->ReceiverAs == 'to') {
+            if (
+                $this->inboxDetail->NTipe == InboxTypeEnum::INBOX()->value ||
+                $this->inboxDetail->NTipe == InboxTypeEnum::OUTBOXNOTADINAS()->value
+            ) {
+                $toLabel = 'Naskah Masuk Non Disposisi';
+            }
         }
 
         $label = match ($this->ReceiverAs) {
-            'to'                    => 'Naskah Masuk' . $nonDispositionLabel,
-            'to_undangan'           => 'Undangan',
-            'to_sprint'             => 'Perintah',
-            'to_notadinas'          => 'Nota Dinas',
+            'to'                    => $toLabel,
+            'to_notadinas',
+            'to_sprint',
+            'to_sprintgub',
+            'to_supertugas',
+            'to_super_tugas_keluar',
+            'to_pengumuman',
+            'to_suratizin',
+            'to_surat_izin_keluar',
+            'to_sket',
+            'to_rekomendasi'        => 'Naskah Masuk Non Disposisi',
+            'to_forward'            => 'Teruskan',
+            'to_undangan'           => 'Surat Undangan',
+            'to_edaran'             => 'Surat Edaran',
+            'to_instruksigub'       => 'Surat Instruksi Gubernur',
+            'to_keluar'             => 'Surat Dinas',
             'to_reply'              => 'Naskah Dinas',
             'to_usul'               => 'Jawaban Nota Dinas',
-            'to_forward'            => 'Teruskan',
-            'cc1'                   => 'Disposisi',
-            'bcc'                   => 'Tembusan',
-            'to_keluar'             => 'Surat Dinas Keluar',
             'to_nadin'              => 'Naskah Dinas Lainnya',
             'to_konsep'             => 'Konsep Naskah',
             'to_memo'               => 'Memo',
+            'cc1'                   => 'Disposisi',
+            'bcc'                   => 'Tembusan',
             'to_draft_notadinas'    => 'Konsep Nota Dinas',
-            'to_draft_sprint'       => 'Konsep Surat Perintah',
-            'to_draft_undangan'     => 'Konsep Undangan',
-            'to_draft_keluar'       => 'Konsep surat Dinas',
-            'to_draft_sket'         => 'Konsep surat Keterangan',
+            'to_draft_sprint'       => 'Konsep Surat Perintah Perangkat Daerah',
+            'to_draft_sprintgub'    => 'Konsep Surat Perintah Gubernur',
+            'to_draft_undangan'     => 'Konsep Surat Undangan',
+            'to_draft_edaran'       => 'Konsep Surat Edaran',
+            'to_draft_instruksigub' => 'Konsep Surat Instruksi Gubernur',
+            'to_draft_supertugas'   => 'Konsep Surat Pernyataan Melaksanakan Tugas',
+            'to_draft_keluar'       => 'Konsep Surat Dinas',
+            'to_draft_sket'         => 'Konsep Surat Keterangan',
             'to_draft_pengumuman'   => 'Konsep Pengumuman',
+            'to_draft_suratizin'    => 'Konsep Surat Izin',
             'to_draft_rekomendasi'  => 'Konsep Surat Rekomendasi',
             default                 => 'Konsep Naskah Dinas Lainnya'
         };

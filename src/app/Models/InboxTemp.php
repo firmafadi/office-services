@@ -5,13 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Inbox extends Model
+class InboxTemp extends Model
 {
     use HasFactory;
 
     protected $connection = 'sikdweb';
 
-    protected $table = 'inbox';
+    protected $table = 'inbox_temp';
 
     protected $keyType = 'string';
 
@@ -57,11 +57,6 @@ class Inbox extends Model
     public function createdBy()
     {
         return $this->belongsTo(People::class, 'CreatedBy', 'PeopleId');
-    }
-
-    public function setNTglRegAttribute($value)
-    {
-        $this->attributes['NTglReg'] = $value->copy()->addHours(7);
     }
 
     public function getAttachmentAttribute()

@@ -21,7 +21,7 @@ class ValidationDocumentQuery
                 break;
 
             case ValidationDocumentTypeEnum::CODE():
-                return $this->getValidationByCode($args);
+                return $this->getValidationByCode($args['filter']['value']);
                 break;
 
             default:
@@ -46,19 +46,27 @@ class ValidationDocumentQuery
 
         $inboxFile = InboxFile::where('NId', $latestSlug)
                             ->orWhere('FileName_fake', $latestSlug)
-                            ->where('Id_dokumen', '<>', '')->first();
+                            ->first();
 
         $documentSignature = null;
         if (!$inboxFile) {
             $documentSignature = DocumentSignature::where('file', $latestSlug)->first();
         }
 
-        $data = collect([
-            'documentSignature' => $documentSignature,
-            'inboxFile' => $inboxFile
-        ]);
+        if ($documentSignature != null || $inboxFile != null) {
+            $data = collect([
+                'documentSignature' => $documentSignature,
+                'inboxFile' => $inboxFile
+            ]);
 
-        return $data;
+            return $data;
+        } else {
+            $splitValue = explode('/', $args['filter']['value']);
+            $latestSlug = end($splitValue);
+            $codeFromUrl = explode('?', $latestSlug);
+
+            return $this->getValidationByCode(reset($codeFromUrl));
+        }
     }
 
     /**
@@ -67,10 +75,8 @@ class ValidationDocumentQuery
      * @param  mixed $args
      * @return void
      */
-    private function getValidationByCode($args)
+    private function getValidationByCode($code)
     {
-        $code = $args['filter']['value'];
-
         $inboxFile = InboxFile::where('id_dokumen', $code)->first();
         $documentSignature = null;
 

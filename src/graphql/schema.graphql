@@ -10,6 +10,7 @@ type Query {
         @guard
 
     inboxes(
+        orderBy: _ @orderBy(columns: ["ReceiveDate"])
         search: String @builder(method: "App\\Models\\InboxReceiver@search")
         filter: FilterInput @builder(method: "App\\Models\\InboxReceiver@filter")
     ): [InboxReceiver!]!
@@ -66,6 +67,7 @@ type Query {
 
     # You can use this @field code for experiment query leveling -> @field(resolver: "DocumentSignatureQuery@list")
     documentSignatureSents(
+        orderBy: _ @orderBy(columns: ["tgl"])
         search: String @builder(method: "App\\Models\\DocumentSignatureSent@search")
         filter: documentSignatureSentsInput @builder(method: "App\\Models\\DocumentSignatureSent@filter")
     ): [DocumentSignatureSent!]!
@@ -84,6 +86,7 @@ type Query {
 
     documentSignatureSent(
         id: ID @eq
+        objective: ObjectiveType
     ): DocumentSignatureSent!
         @field(resolver: "DocumentSignatureQuery@detail")
         @guard

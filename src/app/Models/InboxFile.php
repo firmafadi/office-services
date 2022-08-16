@@ -26,7 +26,7 @@ class InboxFile extends Model
 
     public function inboxReceivers()
     {
-        return $this->hasMany(InboxReceiver::class, 'GIR_Id', 'GIR_Id');
+        return $this->hasMany(InboxReceiver::class, 'GIR_Id', 'GIR_Id')->whereNotIn('ReceiverAs', ['to_distributed', 'to_archive']);
     }
 
     public function find($query, $id)

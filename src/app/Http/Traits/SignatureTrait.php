@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Models\PassphraseSession;
 use Carbon\Carbon;
@@ -48,7 +49,7 @@ trait SignatureTrait
 
             return $response->body();
         } catch (\Throwable $th) {
-            throw new CustomException('Connect API for check user failed', $th->getMessage());
+            throw new CustomException('Gagal terhubung untuk pengecekan NIK ke API BSrE', $th->getMessage());
         }
     }
 
@@ -58,18 +59,32 @@ trait SignatureTrait
      * @param  mixed $response
      * @return void
      */
-    public function createPassphraseSessionLog($response)
+    public function createPassphraseSessionLog($response, $id = null)
     {
         $passphraseSession = new PassphraseSession();
         $passphraseSession->nama_lengkap    = auth()->user()->PeopleName;
         $passphraseSession->jam_akses       = Carbon::now();
-        $passphraseSession->keterangan      = 'Insert Passphrase Berhasil, Data disimpan';
-        $passphraseSession->log_desc        = 'sukses';
+        $passphraseSession->keterangan      = 'Berhasil melakukan TTE dari mobile';
+        $passphraseSession->log_desc        = 'OK';
+
+        $logData = [
+            'event' => 'esign',
+            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+            'letter' => [
+                'id' => $id
+            ]
+        ];
 
         if ($response->status() != Response::HTTP_OK) {
-            $passphraseSession->keterangan      = 'Insert Passphrase Gagal, Data failed';
-            $passphraseSession->log_desc        = 'gagal';
+            $bodyResponse = json_decode($response->body());
+            $passphraseSession->keterangan      = 'Gagal melakukan TTE dari mobile';
+            $passphraseSession->log_desc        = $bodyResponse->error . ' | File : ' . $id . ' | User : ' . auth()->user()->PeopleId;
+
+            $logData['status'] = KafkaStatusTypeEnum::ESIGN_FAILED();
+            $logData['message'] = $bodyResponse->error;
         }
+
+        $this->kafkaPublish('analytic_event', $logData);
 
         $passphraseSession->save();
 
