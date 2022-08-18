@@ -121,7 +121,7 @@ class People extends Authenticatable
         $roleId = auth()->user()->PrimaryRoleId;
         if ($roleId != PeopleRoleIdTypeEnum::UKSETDA()->value) {
             $superiorId = auth()->user()->RoleAtasan;
-            $superiorPosition = People::where('PrimaryRoleId', $superiorId)->first()->PeoplePosition;
+            $superiorPosition = People::where('PrimaryRoleId', $superiorId)->first()?->PeoplePosition;
             if ($this->isALeader($superiorPosition)) {
                 // will return the user seperior (atasan) and the secretary
                 $query->whereIn('PrimaryRoleId', [$superiorId, $superiorId . '.1']);
