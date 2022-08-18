@@ -31,8 +31,8 @@ trait KafkaTrait
         if (auth()->check()) {
             $user = auth()->user();
             $session_userdata = json_decode(json_encode(auth()->user()), true);
-            $session_userdata['roleDesc'] = $user->role->RoleDesc;
-            $session_userdata['department'] = $user->role->rolecode->rolecode_sort;
+            $session_userdata['roleDesc'] = $user->role?->RoleDesc;
+            $session_userdata['department'] = $user->role?->rolecode?->rolecode_sort;
             $data['session_userdata'] = $session_userdata;
         }
 

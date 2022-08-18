@@ -73,7 +73,8 @@ class DocumentSignatureQuery
         }
 
         //Check the inbox is readed or not
-        if ($args['objective'] == ObjectiveTypeEnum::IN()) { // action from inbox
+        $objective = (!empty($args['objective'])) ? $args['objective'] : ObjectiveTypeEnum::IN(); //handle for old mobile app
+        if ($objective == ObjectiveTypeEnum::IN()) { // action from inbox
             if ($documentSignatureSent->PeopleIDTujuan == auth()->user()->PeopleId) {
                 $documentSignatureSent->is_receiver_read = true;
             }
