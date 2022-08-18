@@ -225,8 +225,8 @@ trait InboxFilterTrait
             $this->queryInternalScopeGovernor($query);
         } elseif ($receiverTypes && $arrayReceiverTypes[0] == 'to_forward') {
             $query->whereRelation('sender', 'GroupId', '!=', PeopleGroupTypeEnum::UK());
-        } else {
-            $query->whereRelation('sender.role', 'RoleCode', '=', auth()->user()->role?->RoleCode);
+        } elseif (auth()->user()->role?->RoleCode) {
+            $query->whereRelation('sender.role', 'RoleCode', '=', auth()->user()->role->RoleCode);
         }
     }
 
