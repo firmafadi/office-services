@@ -82,11 +82,18 @@ class InboxReceiverCorrection extends Model
 
     public function search($query, $search)
     {
-        $query->whereIn('NId', function ($inboxQuery) use ($search) {
-            $inboxQuery->select('NId_Temp')
-                ->from('konsep_naskah')
-                ->where('Hal', 'LIKE', '%' . $search . '%');
-        });
+        if ($search) {
+            $query->whereIn(
+                'NId',
+                fn ($query) => $query
+                    ->select('NId_Temp')
+                    ->from('konsep_naskah')
+                    ->whereRaw(
+                        'MATCH(Hal) AGAINST(? IN BOOLEAN MODE)',
+                        [$search . '*']
+                    )
+            );
+        }
 
         return $query;
     }
