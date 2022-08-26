@@ -62,7 +62,11 @@ class DocumentSignatureMutator
         $file = $this->fileExist($documentSignatureSent->documentSignature->url);
 
         if (!$file) {
-            $logData['message'] = 'Document not found';
+            $logData = [
+                'event' => 'document_not_found_signature_sent',
+                'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_NOFILE(),
+                'message' => 'Document not found'
+            ];
             $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException('Dokumen tidak tersedia', 'Dokumen yang akan ditandatangi tidak tersedia');
         }
@@ -70,7 +74,11 @@ class DocumentSignatureMutator
         $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
             $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase);
-            $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
+            $logData = [
+                'event' => 'bsre_nik_available',
+                'status' => KafkaStatusTypeEnum::SUCCESS(),
+                'serviceResponse' => (array) $checkUserResponse
+            ];
             $this->kafkaPublish('analytic_event', $logData);
 
             return $signature;

@@ -67,6 +67,7 @@ trait SignatureTrait
     {
         $logData = [
             'message' => 'Invalid BSRE Service',
+            'event' => 'bsre_nik_invalid',
             'longMessage' => 'Tidak dapat terhubung dengan BSRE, silahkan coba kembali',
             'serviceResponse' => (array) $checkUserResponse
         ];
