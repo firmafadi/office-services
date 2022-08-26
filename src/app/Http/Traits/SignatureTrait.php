@@ -2,8 +2,10 @@
 
 namespace App\Http\Traits;
 
+use App\Enums\BsreStatusTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\PassphraseSession;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
@@ -14,6 +16,8 @@ use Illuminate\Support\Facades\Http;
  */
 trait SignatureTrait
 {
+    use KafkaTrait;
+
     /**
      * setupConfigSignature
      *
@@ -51,6 +55,35 @@ trait SignatureTrait
         } catch (\Throwable $th) {
             throw new CustomException('Gagal terhubung untuk pengecekan NIK ke API BSrE', $th->getMessage());
         }
+    }
+
+    /**
+     * invalidResponseCheckUserSignature
+     *
+     * @param  mixed $checkUserResponse
+     * @return void
+     */
+    public function invalidResponseCheckUserSignature($checkUserResponse)
+    {
+        $logData = [
+            'message' => 'Invalid BSRE Service',
+            'event' => 'bsre_nik_invalid',
+            'longMessage' => 'Tidak dapat terhubung dengan BSRE, silahkan coba kembali',
+            'serviceResponse' => (array) $checkUserResponse
+        ];
+
+        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_NOT_REGISTERED()->value) {
+            $logData['message'] = 'Invalid User NIK';
+            $logData['longMessage'] = 'User NIK Anda Belum Terdaftar';
+        }
+
+        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_ESIGN_NOT_ACTIVE()->value) {
+            $logData['message'] = 'Sertifikat Tidak Aktif';
+            $logData['longMessage'] = 'User NIK sudah terdaftar tapi belum memiliki sertifikat esign yang aktif';
+        }
+
+        $this->kafkaPublish('analytic_event', $logData);
+        throw new CustomException($logData['message'], $logData['longMessage']);
     }
 
     /**
