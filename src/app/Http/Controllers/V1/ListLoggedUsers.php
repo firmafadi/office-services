@@ -20,10 +20,9 @@ class ListLoggedUsers extends Controller
     {
         $authHeader = $request->header('Authorization');
         if (!$authHeader || $authHeader != 'Basic ' . config('personalaccesstoken.auth_key')) {
-            throw new CustomException(
-                'Invalid header',
-                'Invalid authorization, please insert a valid authorization header'
-            );
+            return response()->json([
+                'message' => 'Unauthorized',
+            ], 401);
         }
 
         $idNumber = $request->idNumber; // idNumber is a NIK or NIP
@@ -34,8 +33,13 @@ class ListLoggedUsers extends Controller
 
         $hasLogged = PersonalAccessToken::where('tokenable_id', $userId?->PeopleId)->exists();
         if (!$hasLogged) {
-            return ['message' => 'User has no logged'];
+            return response()->json([
+                'message' => 'No logged user found'
+            ], 404);
         }
-        return ['message' => 'User has logged'];
+
+        return response()->json([
+            'message' => 'User has logged',
+        ], 200);
     }
 }
