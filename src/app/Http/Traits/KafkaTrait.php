@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Junges\Kafka\Facades\Kafka;
 use Junges\Kafka\Message\Message;
@@ -27,7 +28,7 @@ trait KafkaTrait
         }
 
         $data['medium']     = 'mobile';
-        $data['timestamp']  = time();
+        $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
         if (auth()->check()) {
             $user = auth()->user();
             $session_userdata = json_decode(json_encode(auth()->user()), true);
