@@ -41,7 +41,7 @@ class LoggedUserCheckController extends Controller
         if (!$hasLogged) {
             return response()->json([
                 'message' => 'User has never logged in'
-            ], 404);
+            ], 412);
         }
 
         return response()->json([
