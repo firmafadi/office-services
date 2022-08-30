@@ -2,6 +2,7 @@
 
 namespace App\GraphQL\Mutations;
 
+use App\Enums\BsreStatusTypeEnum;
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
@@ -61,23 +62,29 @@ class DocumentSignatureMutator
         $file = $this->fileExist($documentSignatureSent->documentSignature->url);
 
         if (!$file) {
-            $logData['message'] = 'Document not found';
+            $logData = [
+                'event' => 'document_not_found_signature_sent',
+                'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_NOFILE(),
+                'message' => 'Document not found'
+            ];
             $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException('Dokumen tidak tersedia', 'Dokumen yang akan ditandatangi tidak tersedia');
         }
 
-        $checkUser = json_decode($this->checkUserSignature($setupConfig));
-        if ($checkUser->status_code != 1111) {
-            $logData['message'] = 'Invalid User NIK';
+        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
+        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
+            $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase);
+            $logData = [
+                'event' => 'bsre_nik_available',
+                'status' => KafkaStatusTypeEnum::SUCCESS(),
+                'serviceResponse' => (array) $checkUserResponse
+            ];
             $this->kafkaPublish('analytic_event', $logData);
-            throw new CustomException('Invalid NIK User', 'NIK User tidak terdaftar, silahkan hubungi administrator');
+
+            return $signature;
+        } else {
+            $this->invalidResponseCheckUserSignature($checkUserResponse);
         }
-
-        $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase);
-        $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
-        $this->kafkaPublish('analytic_event', $logData);
-
-        return $signature;
     }
 
     /**

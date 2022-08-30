@@ -3,6 +3,7 @@
 namespace App\GraphQL\Mutations;
 
 use App\Enums\ActionLabelTypeEnum;
+use App\Enums\BsreStatusTypeEnum;
 use App\Enums\DraftConceptStatusTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
@@ -52,17 +53,21 @@ class DraftSignatureMutator
         }
 
         $setupConfig = $this->setupConfigSignature();
-        $checkUser = json_decode($this->checkUserSignature($setupConfig));
-        if ($checkUser->status_code != 1111) {
-            throw new CustomException('Invalid NIK User', 'NIK User tidak terdaftar, silahkan hubungi administrator');
+        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
+        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
+            $draft     = Draft::where('NId_temp', $draftId)->first();
+            $signature = $this->doSignature($setupConfig, $draft, $passphrase);
+
+            $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
+            $draft->save();
+
+            $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
+            $this->kafkaPublish('analytic_event', $logData);
+
+            return $signature;
+        } else {
+            $this->invalidResponseCheckUserSignature($checkUserResponse);
         }
-        $draft     = Draft::where('NId_temp', $draftId)->first();
-        $signature = $this->doSignature($setupConfig, $draft, $passphrase);
-
-        $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
-        $draft->save();
-
-        return $signature;
     }
 
     /**
