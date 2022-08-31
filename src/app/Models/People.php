@@ -43,6 +43,11 @@ class People extends Authenticatable
         return $this->belongsTo(SiapPeople::class, 'PeopleUsername', 'peg_nip');
     }
 
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'GroupId', 'GroupId');
+    }
+
     public function filter($query, $filter)
     {
         $this->filterByProposedType($query, $filter);

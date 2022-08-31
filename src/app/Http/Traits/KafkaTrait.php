@@ -31,10 +31,7 @@ trait KafkaTrait
         $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
         if (auth()->check()) {
             $user = auth()->user();
-            $session_userdata = json_decode(json_encode(auth()->user()), true);
-            $session_userdata['roleDesc'] = $user->role?->RoleDesc;
-            $session_userdata['department'] = $user->role?->rolecode?->rolecode_sort;
-            $data['session_userdata'] = $session_userdata;
+            $data['session_userdata'] = $this->setSessionUserdata($user);
         }
 
         $message = new Message(body: $data);
@@ -46,5 +43,37 @@ trait KafkaTrait
         Log::info('Start publish messages to Kafka.');
         $producer->send();
         Log::info('Finish publish messages to Kafka.');
+    }
+
+    /**
+     * setSessionUserdata
+     *
+     * Set session userdata like SIDEBAR WEBSITE
+     *
+     * @param  mixed $user
+     * @return void
+     */
+    public function setSessionUserdata($user)
+    {
+        $session_userdata['peopleid']       = $user->PeopleId;
+        $session_userdata['groupid']        = $user->GroupId;
+        $session_userdata['groupname']      = $user->group?->GroupName;
+        $session_userdata['peopleusername'] = $user->PeopleUsername;
+        $session_userdata['peoplename']     = $user->PeopleName;
+        $session_userdata['peopleposition'] = $user->PeoplePosition;
+        $session_userdata['roleid']         = $user->role?->RoleId;
+        $session_userdata['namabagian']     = $user->role?->RoleDesc;
+        $session_userdata['gjabatanid']     = $user->role?->gjabatanId;
+        $session_userdata['roleatasan']     = $user->RoleAtasan;
+        $session_userdata['rolecode']       = $user->role?->RoleCode;
+        $session_userdata['rolecode_name']  = $user->role?->roleCode?->rolecode_name;
+        $session_userdata['rolecode_sort']  = $user->role?->roleCode?->rolecode_sort;
+        $session_userdata['nik']            = $user->NIK;
+        $session_userdata['groleid']        = $user->role?->GRoleId;
+        $session_userdata['code_tu']        = $user->role?->Code_Tu;
+        $session_userdata['approvelname']   = $user->ApprovelName;
+        $session_userdata['primaryroleid']  = $user->PrimaryRoleId;
+
+        return $session_userdata;
     }
 }
