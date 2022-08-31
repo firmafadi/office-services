@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\V1;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Http\Controllers\Controller;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use Illuminate\Http\Request;
 
 class SignaturedDocumentDownloadController extends Controller
 {
+    use KafkaTrait;
+
     /**
      * Handle the incoming request.
      *
@@ -18,6 +22,11 @@ class SignaturedDocumentDownloadController extends Controller
     {
         $document = DocumentSignature::find($id);
         if (!$document) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'download_signed_letter',
+                'status' => KafkaStatusTypeEnum::FAILED()
+            ]);
+
             return response()->json([
                 'message' => 'Document not found'
             ], 404);
@@ -39,6 +48,14 @@ class SignaturedDocumentDownloadController extends Controller
                 }
             }
         }
+
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'download_signed_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'file' => $file
+            ]
+        ]);
 
         return response()->json([
             'file' => $file
