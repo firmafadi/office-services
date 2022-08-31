@@ -20,14 +20,19 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    Route::prefix('v1')->group(function () {
+        Route::get('/signatured-documents/{id}/file', [SignaturedDocumentDownloadController::class, '__invoke']);
+    });
 });
+
 
 Route::prefix('v1')->group(function () {
     Route::post('/send-notification', [SendNotificationController::class, '__invoke']);
     Route::post('/log-user-activity', [LogUserActivityController::class, '__invoke']);
     Route::get('/draft/{id}', [DocumentDraftPdfController::class, '__invoke']);
     Route::get('/users/{idNumber}/haslogged', [LoggedUserCheckController::class, '__invoke']);
-    Route::get('/signatured-documents/{id}/file', [SignaturedDocumentDownloadController::class, '__invoke']);
 });
