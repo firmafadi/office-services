@@ -31,7 +31,7 @@ trait KafkaTrait
         $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
         if (auth()->check()) {
             $user = auth()->user();
-            $data['session_userdata'] = $this->setSessionUserdata();
+            $data['session_userdata'] = $this->setSessionUserdata($user);
         }
 
         $message = new Message(body: $data);
@@ -50,11 +50,11 @@ trait KafkaTrait
      *
      * Set session userdata like SIDEBAR WEBSITE
      *
+     * @param  mixed $user
      * @return void
      */
-    public function setSessionUserdata()
+    public function setSessionUserdata($user)
     {
-        $user = auth()->user();
         $session_userdata['peopleid']       = $user->PeopleId;
         $session_userdata['groupid']        = $user->GroupId;
         $session_userdata['groupname']      = $user->group?->GroupName;
