@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\V1\SendNotificationController;
 use App\Http\Controllers\V1\DocumentDraftPdfController;
-use App\Http\Controllers\V1\InboxDocumentDownloadController;
 use App\Http\Controllers\V1\LoggedUserCheckController;
 use App\Http\Controllers\V1\LogUserActivityController;
 use App\Http\Controllers\V1\SignaturedDocumentDownloadController;
