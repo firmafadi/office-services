@@ -29,7 +29,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-
 Route::prefix('v1')->group(function () {
     Route::post('/send-notification', [SendNotificationController::class, '__invoke']);
     Route::post('/log-user-activity', [LogUserActivityController::class, '__invoke']);
