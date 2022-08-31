@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\V1\SendNotificationController;
 use App\Http\Controllers\V1\DocumentDraftPdfController;
+use App\Http\Controllers\V1\InboxDocumentDownloadController;
 use App\Http\Controllers\V1\LoggedUserCheckController;
 use App\Http\Controllers\V1\LogUserActivityController;
+use App\Http\Controllers\V1\SignaturedDocumentDownloadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -27,4 +29,5 @@ Route::prefix('v1')->group(function () {
     Route::post('/log-user-activity', [LogUserActivityController::class, '__invoke']);
     Route::get('/draft/{id}', [DocumentDraftPdfController::class, '__invoke']);
     Route::get('/users/{idNumber}/haslogged', [LoggedUserCheckController::class, '__invoke']);
+    Route::get('/signatured-documents/{id}/file', [SignaturedDocumentDownloadController::class, '__invoke']);
 });
