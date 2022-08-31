@@ -36,6 +36,7 @@ class SignaturedDocumentDownloadController extends Controller
             ], 200);
         } else {
             $logData['status'] = KafkaStatusTypeEnum::FAILED();
+            $logData['message'] = 'Document not found';
             $this->kafkaPublish('analytic_event', $logData);
             return response()->json([
                 'message' => 'Document not found'
