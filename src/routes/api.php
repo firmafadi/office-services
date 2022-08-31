@@ -24,7 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     Route::prefix('v1')->group(function () {
-        Route::get('/signatured-documents/{id}/file', [SignaturedDocumentDownloadController::class, '__invoke']);
+        Route::get('/signatured-documents/{id}/download', [SignaturedDocumentDownloadController::class, '__invoke']);
     });
 });
 

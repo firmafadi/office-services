@@ -31,9 +31,11 @@ class SignaturedDocumentDownloadController extends Controller
             $file = $this->generateFile($document);
             $logData['letter']['file'] = $file;
             $this->kafkaPublish('analytic_event', $logData);
-            return response()->json([
-                'file' => $file
-            ], 200);
+            // download document file
+            $filename = $document->file;
+            $tempFile = tempnam(sys_get_temp_dir(), $filename);
+            copy($file, $tempFile);
+            return response()->download($tempFile, $filename);
         } else {
             $logData['status'] = KafkaStatusTypeEnum::FAILED();
             $logData['message'] = 'Document not found';
