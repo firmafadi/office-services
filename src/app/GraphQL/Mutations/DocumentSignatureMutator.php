@@ -176,12 +176,15 @@ class DocumentSignatureMutator
         //save to storage path for temporary file
         Storage::disk('local')->put($newFileName, $pdf->body());
 
+        //find this document is not last on list
+        $nextDocumentSent = $this->findNextDocumentSent($data);
+
         //transfer to existing service
-        $response = $this->doTransferFile($data, $newFileName);
+        $response = $this->doTransferFile($data, $newFileName, $nextDocumentSent);
         if ($response->status() != Response::HTTP_OK) {
             throw new CustomException('Gagal menyambung ke webhook API', 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali');
         } else {
-            $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode);
+            $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode, $nextDocumentSent);
         }
 
         Storage::disk('local')->delete($newFileName);
@@ -194,9 +197,10 @@ class DocumentSignatureMutator
      *
      * @param  collection $data
      * @param  string $newFileName
+     *  @param collection $nextDocumentSent
      * @return mixed
      */
-    protected function doTransferFile($data, $newFileName)
+    protected function doTransferFile($data, $newFileName, $nextDocumentSent)
     {
         // setup body request
         $documentRequest = [
@@ -209,7 +213,7 @@ class DocumentSignatureMutator
             $documentRequest['first_tier'] = true;
         }
 
-        if ($data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
+        if (!$nextDocumentSent && $data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
             $documentRequest['last_tier'] = true;
             $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
         }
@@ -237,9 +241,10 @@ class DocumentSignatureMutator
      *
      * @param  collection $data
      * @param  string $newFileName
+     * @param  collection $nextDocumentSent
      * @return collection
      */
-    protected function updateDocumentSentStatus($data, $newFileName, $verifyCode)
+    protected function updateDocumentSentStatus($data, $newFileName, $verifyCode, $nextDocumentSent)
     {
         DB::beginTransaction();
         try {
@@ -261,7 +266,6 @@ class DocumentSignatureMutator
             ])->first();
 
             //check if any next siganture require
-            $nextDocumentSent = $this->findNextDocumentSent($data);
             if ($nextDocumentSent) {
                 DocumentSignatureSent::where('id', $nextDocumentSent->id)->update([
                     'next' => SignatureVisibleTypeEnum::SHOW()->value
