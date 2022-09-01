@@ -7,11 +7,12 @@ use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
+use App\Enums\SignatureVisibleTypeEnum;
 use App\Enums\StatusReadTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\DocumentSignatureSentTrait;
 use App\Http\Traits\KafkaTrait;
-
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 use Illuminate\Support\Arr;
@@ -20,6 +21,7 @@ class DocumentSignatureRejectMutator
 {
     use SendNotificationTrait;
     use KafkaTrait;
+    use DocumentSignatureSentTrait;
 
     /**
      * @param $rootValue
@@ -50,10 +52,26 @@ class DocumentSignatureRejectMutator
         $documentSignatureSent->forward_receiver_id = $documentSignatureSent->PeopleID;
         $documentSignatureSent->save();
 
-
+        // set document status into reject
         DocumentSignature::where('id', $documentSignatureSent->ttd_id)->update([
             'status' => SignatureStatusTypeEnum::REJECT()->value,
         ]);
+        // hide next people after reject document
+        DocumentSignatureSent::where('ttd_id', $documentSignatureSent->ttd_id)
+                        ->where('urutan', '>', $documentSignatureSent->urutan)
+                        ->update([
+                            'next' => SignatureVisibleTypeEnum::HIDE()->value,
+                        ]);
+
+        $lastPeople = $this->findNextDocumentSent($documentSignatureSent);
+        // update passed people at document signature list when last people already signed
+        if ($lastPeople) {
+            $updateMissedList = DocumentSignatureSent::where('ttd_id', $documentSignatureSent->ttd_id)
+                                    ->where('status', SignatureStatusTypeEnum::WAITING()->value)
+                                    ->update([
+                                        'status' => SignatureStatusTypeEnum::MISSED()->value
+                                    ]);
+        }
 
         $this->doSendNotification($documentSignatureSentId);
 

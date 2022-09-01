@@ -9,9 +9,11 @@ use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
+use App\Enums\SignatureVisibleTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Http\Traits\SignatureTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\DocumentSignatureSentTrait;
 use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureForward;
@@ -29,6 +31,7 @@ class DocumentSignatureMutator
     use SendNotificationTrait;
     use SignatureTrait;
     use KafkaTrait;
+    use DocumentSignatureSentTrait;
 
     /**
      * @param $rootValue
@@ -230,21 +233,6 @@ class DocumentSignatureMutator
     }
 
     /**
-     * findNextDocumentSent
-     *
-     * @param  collection $data
-     * @return collection
-     */
-    protected function findNextDocumentSent($data)
-    {
-        $nextDocumentSent = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
-                                                    ->where('urutan', $data->urutan + 1)
-                                                    ->first();
-
-        return $nextDocumentSent;
-    }
-
-    /**
      * updateDocumentSentStatus
      *
      * @param  collection $data
@@ -267,7 +255,7 @@ class DocumentSignatureMutator
             //update status document sent to 1 (signed)
             $updateDocumentSent = tap(DocumentSignatureSent::where('id', $data->id))->update([
                 'status' => SignatureStatusTypeEnum::SUCCESS()->value,
-                'next' => 1,
+                'next' => SignatureVisibleTypeEnum::SHOW()->value,
                 'tgl_ttd' => setDateTimeNowValue(),
                 'is_sender_read' => false
             ])->first();
@@ -276,7 +264,7 @@ class DocumentSignatureMutator
             $nextDocumentSent = $this->findNextDocumentSent($data);
             if ($nextDocumentSent) {
                 DocumentSignatureSent::where('id', $nextDocumentSent->id)->update([
-                    'next' => 1
+                    'next' => SignatureVisibleTypeEnum::SHOW()->value
                 ]);
                 //Send notification to next people
                 $this->doSendNotification($nextDocumentSent->id);
