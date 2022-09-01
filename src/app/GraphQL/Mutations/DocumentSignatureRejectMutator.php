@@ -63,9 +63,9 @@ class DocumentSignatureRejectMutator
                             'next' => SignatureVisibleTypeEnum::HIDE()->value,
                         ]);
 
-        $lastPeople = $this->findNextDocumentSent($documentSignatureSent);
+        $checkHasNext = $this->findNextDocumentSent($documentSignatureSent);
         // update passed people at document signature list when last people already signed
-        if ($lastPeople) {
+        if (!$checkHasNext) {
             $updateMissedList = DocumentSignatureSent::where('ttd_id', $documentSignatureSent->ttd_id)
                                     ->where('status', SignatureStatusTypeEnum::WAITING()->value)
                                     ->update([
