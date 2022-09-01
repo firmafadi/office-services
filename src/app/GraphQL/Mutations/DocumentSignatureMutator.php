@@ -272,6 +272,12 @@ class DocumentSignatureMutator
                 $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
                     'status' => SignatureStatusTypeEnum::SUCCESS()->value,
                 ]);
+                // update passed people at document signature list when last people already signed
+                $updateMissedList = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
+                                    ->where('status', SignatureStatusTypeEnum::WAITING()->value)
+                                    ->update([
+                                        'status' => SignatureStatusTypeEnum::MISSED()->value
+                                    ]);
                 //Send notification to sender
                 $this->doSendForwardNotification($data->id, $data->receiver->PeopleName);
             }

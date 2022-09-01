@@ -8,6 +8,7 @@ use Spatie\Enum\Enum;
  * @method static self WAITING()
  * @method static self SUCCESS()
  * @method static self REJECT()
+ * @method static self MISSED()
  * @method static self SIGNED()
  * @method static self UNSIGNED()
  */
@@ -20,6 +21,7 @@ class SignatureStatusTypeEnum extends Enum
             'WAITING' => 0,
             'SUCCESS' => 1,
             'REJECT' => 4,
+            'MISSED' => 5,
         ];
     }
 }
