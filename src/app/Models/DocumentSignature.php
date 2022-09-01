@@ -62,13 +62,16 @@ class DocumentSignature extends Model
 
     public function getCanDownloadAttribute()
     {
-        // New data with registered flow
-        if ($this->is_registered != null && $this->is_registered == true) {
-            return true;
-        }
-        // Old data without registered flow
-        if ($this->is_registered == null && str_contains($this->url_public, 'sudah_ttd')) {
-            return true;
+        if ($this->is_registered !== null) {
+            // New data with registered flow OR check on is_mandatory_registered == false but status == SUCCESS
+            if ($this->is_registered === true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
+                return true;
+            }
+        } else {
+            // Old data without registered flow
+            if (str_contains($this->url_public, 'sudah_ttd')) {
+                return true;
+            }
         }
         // Default response document can't download
         return false;
