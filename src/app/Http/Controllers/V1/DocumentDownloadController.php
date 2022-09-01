@@ -25,21 +25,24 @@ class DocumentDownloadController extends Controller
      */
     public function __invoke(Request $request, $type, $id)
     {
+        $file = null;
         $document = $this->getDocument($type, $id);
         if ($document) {
             $file = $this->getFile($document, $request->file);
-            if (!$file) {
-                return response()->json([
-                    'message' => 'File not found'
-                ], 404);
+            if ($file) {
+                $filename = $document->file;
+                $tempFile = tempnam(sys_get_temp_dir(), $filename);
+                copy($file, $tempFile);
+
+                $this->log($file, $type, $request->file);
+                return response()->download($tempFile, $filename);
             }
-            $filename = $document->file;
-            $tempFile = tempnam(sys_get_temp_dir(), $filename);
-            copy($file, $tempFile);
-            return response()->download($tempFile, $filename);
-        } else {
+        }
+
+        if (!$document || !$file) {
+            $this->log($file, $type, $request->file);
             return response()->json([
-                'message' => 'Document not found'
+                'message' => 'File not found'
             ], 404);
         }
     }
@@ -47,13 +50,13 @@ class DocumentDownloadController extends Controller
     /**
      * Get document by letter type.
      *
-     * @param  String $type
+     * @param  String $documentType
      * @param  String $id
      * @return Object
      */
-    protected function getDocument($type, $id)
+    protected function getDocument($documentType, $id)
     {
-        $document = match (strtoupper($type)) {
+        $document = match (strtoupper($documentType)) {
             DocumentDownloadListTypeEnum::SIGNATURE()->value => DocumentSignature::find($id),
             DocumentDownloadListTypeEnum::INBOX()->value => Inbox::find($id)
         };
@@ -74,5 +77,38 @@ class DocumentDownloadController extends Controller
             default => $document->getUrlPublicAttribute()
         };
         return $file;
+    }
+
+    /**
+     * Kafka logging.
+     *
+     * @param  String $file
+     * @param  String $documentType
+     * @param  String $fileType
+     * @param  KafkaStatusTypeEnum $status
+     * @return Void
+     */
+    protected function log($file, $documentType, $fileType)
+    {
+        $logData['event'] = match (strtoupper($documentType)) {
+            DocumentDownloadListTypeEnum::SIGNATURE()->value => match (strtoupper($fileType)) {
+                DocumentDownloadFileTypeEnum::ATTACHMENT()->value => 'download_signed_letter_attachment',
+                default => 'download_signed_letter'
+            },
+            default => match (strtoupper($fileType)) {
+                DocumentDownloadFileTypeEnum::ATTACHMENT()->value => 'download_letter_attachment',
+                default => 'download_letter'
+            },
+        };
+
+        if ($file) {
+            $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
+            $logData['letter']['file'] = $file;
+        } else {
+            $logData['status'] = KafkaStatusTypeEnum::FAILED();
+            $logData['message'] = 'file not found';
+        }
+
+        $this->kafkaPublish('analytic_event', $logData);
     }
 }
