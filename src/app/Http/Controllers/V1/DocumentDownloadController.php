@@ -25,21 +25,16 @@ class DocumentDownloadController extends Controller
      */
     public function __invoke(Request $request, $type, $id)
     {
-        $file = null;
         $document = $this->getDocument($type, $id);
-        if ($document) {
-            $file = $this->getFile($document, $request->file);
-            if ($file) {
-                $filename = $document->file;
-                $tempFile = tempnam(sys_get_temp_dir(), $filename);
-                copy($file, $tempFile);
+        $file = $this->getFile($document, $request->file);
+        if ($document && $file) {
+            $filename = $document->file;
+            $tempFile = tempnam(sys_get_temp_dir(), $filename);
+            copy($file, $tempFile);
 
-                $this->log($file, $type, $request->file);
-                return response()->download($tempFile, $filename);
-            }
-        }
-
-        if (!$document || !$file) {
+            $this->log($file, $type, $request->file);
+            return response()->download($tempFile, $filename);
+        } else {
             $this->log($file, $type, $request->file);
             return response()->json([
                 'message' => 'File not found'
@@ -68,15 +63,17 @@ class DocumentDownloadController extends Controller
      *
      * @param  Object $document
      * @param  String $fileType
-     * @return String
+     * @return Mixed
      */
     protected function getFile($document, $fileType)
     {
-        $file = match (strtoupper($fileType)) {
-            DocumentDownloadFileTypeEnum::ATTACHMENT()->value => $document->getAttachmentAttribute(),
-            default => $document->getUrlPublicAttribute()
-        };
-        return $file;
+        if ($document) {
+            $file = match (strtoupper($fileType)) {
+                DocumentDownloadFileTypeEnum::ATTACHMENT()->value => $document->getAttachmentAttribute(),
+                default => $document->getUrlPublicAttribute()
+            };
+            return $file;
+        }
     }
 
     /**
