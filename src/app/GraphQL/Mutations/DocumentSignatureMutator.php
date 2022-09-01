@@ -206,11 +206,17 @@ class DocumentSignatureMutator
             $documentRequest['first_tier'] = true;
         }
 
+        if ($data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
+            $documentRequest['last_tier'] = true;
+            $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
+        }
+
         $fileSignatured = fopen(Storage::path($newFileName), 'r');
         /**
          * This code will running :
          * Transfer file to service existing
          * Remove original file (first tier)
+         * Remove draft file (last tier) if document didn't required to register before download/distribute
         **/
         $response = Http::withHeaders([
             'Secret' => config('sikd.webhook_secret'),
