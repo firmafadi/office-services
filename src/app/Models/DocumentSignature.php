@@ -30,9 +30,9 @@ class DocumentSignature extends Model
     public function getUrlPublicAttribute()
     {
         $path = config('sikd.base_path_file');
-        if ($this->is_registered !== null) {
+        if ($this->is_registered != null) {
             // New data with registered flow OR check on is_mandatory_registered == false but status == SUCCESS
-            if ($this->is_registered === true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
+            if ($this->is_registered == true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
                 $file = $path . 'ttd/sudah_ttd/' . $this->file;
             } else { // is_registered == false
                 $file = $path . 'ttd/draft/' . $this->tmp_draft_file;
@@ -62,9 +62,9 @@ class DocumentSignature extends Model
 
     public function getCanDownloadAttribute()
     {
-        if ($this->is_registered !== null) {
+        if ($this->is_registered != null) {
             // New data with registered flow OR check on is_mandatory_registered == false but status == SUCCESS
-            if ($this->is_registered === true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
+            if ($this->is_registered == true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
                 return true;
             }
         } else {
