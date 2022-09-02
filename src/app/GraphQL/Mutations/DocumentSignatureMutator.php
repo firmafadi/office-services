@@ -8,6 +8,7 @@ use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
+use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Enums\SignatureVisibleTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
@@ -122,14 +123,14 @@ class DocumentSignatureMutator
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             //Save log
-            $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+            $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $data);
             throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
         } else {
             //Save new file & update status
             $data = $this->saveNewFile($response, $data, $newFileName, $verifyCode);
         }
         //Save log
-        $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+        $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $data);
 
         return $data;
     }
@@ -340,6 +341,14 @@ class DocumentSignatureMutator
 
             return $addFooter;
         } catch (\Throwable $th) {
+            $logData = [
+                'event' => 'esign_FOOTER_pdf',
+                'status' => 'ESIGN_FOOTER_FAILED_UNKNOWN',
+                'esign_source_file' => $data->documentSignature->url,
+                'esign_response' => $th,
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException('Gagal menambahkan QRCode dan text footer', 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali');
         }
     }

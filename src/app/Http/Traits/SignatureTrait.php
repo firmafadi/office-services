@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Enums\BsreStatusTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
+use App\Enums\SignatureDocumentTypeEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\KafkaTrait;
 use App\Models\PassphraseSession;
@@ -67,17 +68,20 @@ trait SignatureTrait
     {
         $logData = [
             'message' => 'Invalid BSRE Service',
-            'event' => 'bsre_nik_invalid',
+            'event' => 'esign_check_user_status',
+            'status' => 'esign_check_user_status_invalid_bsre',
             'longMessage' => 'Tidak dapat terhubung dengan BSRE, silahkan coba kembali',
             'serviceResponse' => (array) $checkUserResponse
         ];
 
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_NOT_REGISTERED()->value) {
+            $logData['status'] = 'esign_check_user_status_not_registered';
             $logData['message'] = 'Invalid User NIK';
             $logData['longMessage'] = 'User NIK Anda Belum Terdaftar';
         }
 
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_ESIGN_NOT_ACTIVE()->value) {
+            $logData['status'] = 'esign_check_user_status_not_have_certified';
             $logData['message'] = 'Sertifikat Tidak Aktif';
             $logData['longMessage'] = 'User NIK sudah terdaftar tapi belum memiliki sertifikat esign yang aktif';
         }
@@ -92,28 +96,25 @@ trait SignatureTrait
      * @param  mixed $response
      * @return void
      */
-    public function createPassphraseSessionLog($response, $id = null)
+    public function createPassphraseSessionLog($response, $type, $data)
     {
+        $dataByType = $this->setDataByType($type, $data);
+
         $passphraseSession = new PassphraseSession();
         $passphraseSession->nama_lengkap    = auth()->user()->PeopleName;
         $passphraseSession->jam_akses       = Carbon::now();
         $passphraseSession->keterangan      = 'Berhasil melakukan TTE dari mobile';
         $passphraseSession->log_desc        = 'OK';
 
-        $logData = [
-            'event' => 'esign',
-            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
-            'letter' => [
-                'id' => $id
-            ]
-        ];
+        $logData = $this->setDefaultLogData($response, $dataByType, $type);
 
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             $passphraseSession->keterangan      = 'Gagal melakukan TTE dari mobile';
-            $passphraseSession->log_desc        = $bodyResponse->error . ' | File : ' . $id . ' | User : ' . auth()->user()->PeopleId;
+            $passphraseSession->log_desc        = $bodyResponse->error . ' | File : ' . $dataByType['id'] . ' | User : ' . auth()->user()->PeopleId . ' Type : ' . $type;
 
-            $logData['status'] = KafkaStatusTypeEnum::ESIGN_FAILED();
+            $logData['event']   = 'esign_sign_pdf';
+            $logData['status']  = KafkaStatusTypeEnum::ESIGN_FAILED();
             $logData['message'] = $bodyResponse->error;
         }
 
@@ -122,5 +123,52 @@ trait SignatureTrait
         $passphraseSession->save();
 
         return $passphraseSession;
+    }
+
+    /**
+     * setDocumentId
+     *
+     * @param  enum $type
+     * @param  mixed $data
+     * @return array
+     */
+    public function setDocumentId($type, $data)
+    {
+        if ($type == SignatureDocumentTypeEnum::DRAFTING_DOCUMENT()) {
+            return [
+                'id' => $data->NId_temp,
+                'file' => $data->draft_file
+            ];
+        }
+
+        if ($type == SignatureDocumentTypeEnum::UPLOAD_DOCUMENT()) {
+            return [
+                'id' => $data->documentSignature->id,
+                'file' => $data->documentSignature->url
+            ];
+        }
+    }
+
+    /**
+     * setDefaultLogData
+     *
+     * @param  mixed $response
+     * @param  array $dataByType
+     * @param  enum $type
+     * @return array
+     */
+    public function setDefaultLogData($response, $dataByType, $type)
+    {
+        return [
+            'event' => 'esign_sign_pdf',
+            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+            'letter' => [
+                'id' => $dataByType['id'],
+                'type' => $type
+            ],
+            'esign_source_file' => $dataByType['file'],
+            'esign_response_http_code' => $response->status(),
+            'esign_response' => $response,
+        ];
     }
 }
