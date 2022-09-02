@@ -4,7 +4,7 @@ use App\Http\Controllers\V1\SendNotificationController;
 use App\Http\Controllers\V1\DocumentDraftPdfController;
 use App\Http\Controllers\V1\LoggedUserCheckController;
 use App\Http\Controllers\V1\LogUserActivityController;
-use App\Http\Controllers\V1\SignaturedDocumentDownloadController;
+use App\Http\Controllers\V1\DocumentDownloadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,7 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     Route::prefix('v1')->group(function () {
-        Route::get('/signatured-documents/{id}/download', [SignaturedDocumentDownloadController::class, '__invoke']);
+        Route::get('/documents/{type}/{id}/download', [DocumentDownloadController::class, '__invoke']);
     });
 });
 
