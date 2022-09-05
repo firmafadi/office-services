@@ -12,6 +12,9 @@ use Spatie\Enum\Enum;
  * @method static self DOCUMENT_APPROVE_FAILED_NIK()
  * @method static self ESIGN_FAILED()
  * @method static self ESIGN_SUCCESS()
+ * @method static self LOGIN_SUCCESS()
+ * @method static self LOGIN_INVALID_CREDENTIALS()
+
  */
 
 final class KafkaStatusTypeEnum extends Enum
