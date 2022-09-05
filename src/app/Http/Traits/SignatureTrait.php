@@ -98,41 +98,45 @@ trait SignatureTrait
      */
     public function createPassphraseSessionLog($response, $type, $data)
     {
-        $dataByType = $this->setDataByType($type, $data);
+        try {
+            $identifyDocument = $this->doIdentifyDocument($type, $data);
 
-        $passphraseSession = new PassphraseSession();
-        $passphraseSession->nama_lengkap    = auth()->user()->PeopleName;
-        $passphraseSession->jam_akses       = Carbon::now();
-        $passphraseSession->keterangan      = 'Berhasil melakukan TTE dari mobile';
-        $passphraseSession->log_desc        = 'OK';
+            $passphraseSession = new PassphraseSession();
+            $passphraseSession->nama_lengkap    = auth()->user()->PeopleName;
+            $passphraseSession->jam_akses       = Carbon::now();
+            $passphraseSession->keterangan      = 'Berhasil melakukan TTE dari mobile';
+            $passphraseSession->log_desc        = 'OK';
 
-        $logData = $this->setDefaultLogData($response, $dataByType, $type);
+            $logData = $this->setDefaultLogData($response, $identifyDocument, $type);
 
-        if ($response->status() != Response::HTTP_OK) {
-            $bodyResponse = json_decode($response->body());
-            $passphraseSession->keterangan      = 'Gagal melakukan TTE dari mobile';
-            $passphraseSession->log_desc        = $bodyResponse->error . ' | File : ' . $dataByType['id'] . ' | User : ' . auth()->user()->PeopleId . ' Type : ' . $type;
+            if ($response->status() != Response::HTTP_OK) {
+                $bodyResponse = json_decode($response->body());
+                $passphraseSession->keterangan  = 'Gagal melakukan TTE dari mobile';
+                $passphraseSession->log_desc    = $bodyResponse->error . ' | File : ' . $identifyDocument['id'] . ' | User : ' . auth()->user()->PeopleId . ' Type : ' . $type;
 
-            $logData['event']   = 'esign_sign_pdf';
-            $logData['status']  = KafkaStatusTypeEnum::ESIGN_FAILED();
-            $logData['message'] = $bodyResponse->error;
+                $logData['event']   = 'esign_sign_pdf';
+                $logData['status']  = KafkaStatusTypeEnum::ESIGN_FAILED();
+                $logData['message'] = $bodyResponse->error;
+            }
+
+            $this->kafkaPublish('analytic_event', $logData);
+
+            $passphraseSession->save();
+
+            return $passphraseSession;
+        } catch (\Throwable $th) {
+            throw new CustomException('Gagal menyimpan log TTE', $th->getMessage());
         }
-
-        $this->kafkaPublish('analytic_event', $logData);
-
-        $passphraseSession->save();
-
-        return $passphraseSession;
     }
 
     /**
-     * setDocumentId
+     * doIdentifyDocument
      *
      * @param  enum $type
      * @param  mixed $data
      * @return array
      */
-    public function setDocumentId($type, $data)
+    public function doIdentifyDocument($type, $data)
     {
         if ($type == SignatureDocumentTypeEnum::DRAFTING_DOCUMENT()) {
             return [
@@ -153,20 +157,20 @@ trait SignatureTrait
      * setDefaultLogData
      *
      * @param  mixed $response
-     * @param  array $dataByType
+     * @param  array $identifyDocument
      * @param  enum $type
      * @return array
      */
-    public function setDefaultLogData($response, $dataByType, $type)
+    public function setDefaultLogData($response, $identifyDocument, $type)
     {
         return [
             'event' => 'esign_sign_pdf',
             'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
             'letter' => [
-                'id' => $dataByType['id'],
+                'id' => $identifyDocument['id'],
                 'type' => $type
             ],
-            'esign_source_file' => $dataByType['file'],
+            'esign_source_file' => $identifyDocument['file'],
             'esign_response_http_code' => $response->status(),
             'esign_response' => $response,
         ];
