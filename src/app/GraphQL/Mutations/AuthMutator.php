@@ -29,10 +29,15 @@ class AuthMutator
         // TODO implement the resolver
         $username = $args['input']['username'];
         $people = People::where('PeopleUsername', $username)->first();
-        if ($people->is_new_hash) {
-            $checkPassword = Hash::check($args['input']['password'], $people->PeoplePassword);
-        } else {
-            $checkPassword = (sha1($args['input']['password']) == $people->PeoplePassword) ? true : false;
+
+        //check password
+        $checkPassword = false;
+        if ($people) {
+            if ($people->is_new_hash) {
+                $checkPassword = Hash::check($args['input']['password'], $people->PeoplePassword);
+            } else {
+                $checkPassword = (sha1($args['input']['password']) == $people->PeoplePassword) ? true : false;
+            }
         }
 
         if (!$people || $people->PeopleIsActive == 0 || $checkPassword == false) {
