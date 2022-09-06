@@ -26,9 +26,15 @@ class AuthMutator
          * @var $people People
          */
         // TODO implement the resolver
-        $people = People::where('PeopleUsername', $args['input']['username'])->first();
+        $username = $args['input']['username'];
+        $people = People::where('PeopleUsername', $username)->first();
 
         if (!$people || $people->PeopleIsActive == 0 || (sha1($args['input']['password']) != $people->PeoplePassword)) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'login',
+                'status' => KafkaStatusTypeEnum::LOGIN_INVALID_CREDENTIALS(),
+                'username' => $username,
+            ]);
             throw new CustomException(
                 'Invalid credential',
                 'Email and password are incorrect'
@@ -51,7 +57,7 @@ class AuthMutator
 
         $this->kafkaPublish('analytic_event', [
             'event' => 'login',
-            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'status' => KafkaStatusTypeEnum::LOGIN_SUCCESS(),
             'session_userdata' => $session_userdata,
         ]);
 
