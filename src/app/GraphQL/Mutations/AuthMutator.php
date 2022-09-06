@@ -7,6 +7,7 @@ use App\Exceptions\CustomException;
 use App\Http\Traits\KafkaTrait;
 use App\Models\People;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Hash;
 
 class AuthMutator
 {
@@ -28,8 +29,13 @@ class AuthMutator
         // TODO implement the resolver
         $username = $args['input']['username'];
         $people = People::where('PeopleUsername', $username)->first();
+        if ($people->is_new_hash) {
+            $checkPassword = Hash::check($args['input']['password'], $people->PeoplePassword);
+        } else {
+            $checkPassword = (sha1($args['input']['password']) == $people->PeoplePassword) ? true : false;
+        }
 
-        if (!$people || $people->PeopleIsActive == 0 || (sha1($args['input']['password']) != $people->PeoplePassword)) {
+        if (!$people || $people->PeopleIsActive == 0 || $checkPassword == false) {
             $this->kafkaPublish('analytic_event', [
                 'event' => 'login',
                 'status' => KafkaStatusTypeEnum::LOGIN_INVALID_CREDENTIALS(),
