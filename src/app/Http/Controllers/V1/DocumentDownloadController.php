@@ -8,6 +8,7 @@ use App\Enums\KafkaStatusTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
+use App\Models\Draft;
 use App\Models\Inbox;
 use Illuminate\Http\Request;
 
@@ -53,6 +54,7 @@ class DocumentDownloadController extends Controller
     {
         $document = match (strtoupper($documentType)) {
             DocumentDownloadListTypeEnum::SIGNATURE()->value => DocumentSignature::find($id),
+            DocumentDownloadListTypeEnum::DRAFT()->value => Draft::find($id),
             DocumentDownloadListTypeEnum::INBOX()->value => Inbox::find($id)
         };
         return $document;
@@ -91,6 +93,10 @@ class DocumentDownloadController extends Controller
             DocumentDownloadListTypeEnum::SIGNATURE()->value => match (strtoupper($fileType)) {
                 DocumentDownloadFileTypeEnum::ATTACHMENT()->value => 'download_signed_letter_attachment',
                 default => 'download_signed_letter'
+            },
+            DocumentDownloadListTypeEnum::DRAFT()->value => match (strtoupper($fileType)) {
+                DocumentDownloadFileTypeEnum::ATTACHMENT()->value => 'download_draft_letter_attachment',
+                default => 'download_draft_letter'
             },
             default => match (strtoupper($fileType)) {
                 DocumentDownloadFileTypeEnum::ATTACHMENT()->value => 'download_letter_attachment',

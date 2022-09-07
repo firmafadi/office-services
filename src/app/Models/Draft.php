@@ -87,6 +87,11 @@ class Draft extends Model
         return $file;
     }
 
+    public function getUrlPublicAttribute()
+    {
+        return $this->getDraftFileAttribute();
+    }
+
     public function getAboutAttribute()
     {
         return str_replace('&nbsp;', ' ', strip_tags($this->Hal));
