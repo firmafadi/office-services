@@ -11,6 +11,7 @@ use App\Enums\InboxReceiverCorrectionTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleIsActiveEnum;
+use App\Enums\SignatureDocumentTypeEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\DraftTrait;
 use App\Http\Traits\KafkaTrait;
@@ -102,13 +103,14 @@ class DraftSignatureMutator
 
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
+            $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
             throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
         } else {
             //Save new file & update status
             $draft = $this->saveNewFile($response, $draft, $verifyCode);
         }
         //Save log
-        $this->createPassphraseSessionLog($response);
+        $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
 
         return $draft;
     }

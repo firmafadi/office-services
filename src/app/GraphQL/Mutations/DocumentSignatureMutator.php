@@ -8,10 +8,13 @@ use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
+use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
+use App\Enums\SignatureVisibleTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Http\Traits\SignatureTrait;
 use App\Exceptions\CustomException;
+use App\Http\Traits\DocumentSignatureSentTrait;
 use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureForward;
@@ -29,6 +32,7 @@ class DocumentSignatureMutator
     use SendNotificationTrait;
     use SignatureTrait;
     use KafkaTrait;
+    use DocumentSignatureSentTrait;
 
     /**
      * @param $rootValue
@@ -119,14 +123,14 @@ class DocumentSignatureMutator
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             //Save log
-            $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+            $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $data);
             throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
         } else {
             //Save new file & update status
             $data = $this->saveNewFile($response, $data, $newFileName, $verifyCode);
         }
         //Save log
-        $this->createPassphraseSessionLog($response, $data->documentSignature->id);
+        $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $data);
 
         return $data;
     }
@@ -173,12 +177,15 @@ class DocumentSignatureMutator
         //save to storage path for temporary file
         Storage::disk('local')->put($newFileName, $pdf->body());
 
+        //find this document is not last on list
+        $nextDocumentSent = $this->findNextDocumentSent($data);
+
         //transfer to existing service
-        $response = $this->doTransferFile($data, $newFileName);
+        $response = $this->doTransferFile($data, $newFileName, $nextDocumentSent);
         if ($response->status() != Response::HTTP_OK) {
             throw new CustomException('Gagal menyambung ke webhook API', 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali');
         } else {
-            $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode);
+            $data = $this->updateDocumentSentStatus($data, $newFileName, $verifyCode, $nextDocumentSent);
         }
 
         Storage::disk('local')->delete($newFileName);
@@ -191,9 +198,10 @@ class DocumentSignatureMutator
      *
      * @param  collection $data
      * @param  string $newFileName
+     *  @param collection $nextDocumentSent
      * @return mixed
      */
-    protected function doTransferFile($data, $newFileName)
+    protected function doTransferFile($data, $newFileName, $nextDocumentSent)
     {
         // setup body request
         $documentRequest = [
@@ -206,11 +214,17 @@ class DocumentSignatureMutator
             $documentRequest['first_tier'] = true;
         }
 
+        if (!$nextDocumentSent && $data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
+            $documentRequest['last_tier'] = true;
+            $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
+        }
+
         $fileSignatured = fopen(Storage::path($newFileName), 'r');
         /**
          * This code will running :
          * Transfer file to service existing
          * Remove original file (first tier)
+         * Remove draft file (last tier) if document didn't required to register before download/distribute
         **/
         $response = Http::withHeaders([
             'Secret' => config('sikd.webhook_secret'),
@@ -224,28 +238,14 @@ class DocumentSignatureMutator
     }
 
     /**
-     * findNextDocumentSent
-     *
-     * @param  collection $data
-     * @return collection
-     */
-    protected function findNextDocumentSent($data)
-    {
-        $nextDocumentSent = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
-                                                    ->where('urutan', $data->urutan + 1)
-                                                    ->first();
-
-        return $nextDocumentSent;
-    }
-
-    /**
      * updateDocumentSentStatus
      *
      * @param  collection $data
      * @param  string $newFileName
+     * @param  collection $nextDocumentSent
      * @return collection
      */
-    protected function updateDocumentSentStatus($data, $newFileName, $verifyCode)
+    protected function updateDocumentSentStatus($data, $newFileName, $verifyCode, $nextDocumentSent)
     {
         DB::beginTransaction();
         try {
@@ -261,16 +261,15 @@ class DocumentSignatureMutator
             //update status document sent to 1 (signed)
             $updateDocumentSent = tap(DocumentSignatureSent::where('id', $data->id))->update([
                 'status' => SignatureStatusTypeEnum::SUCCESS()->value,
-                'next' => 1,
+                'next' => SignatureVisibleTypeEnum::SHOW()->value,
                 'tgl_ttd' => setDateTimeNowValue(),
                 'is_sender_read' => false
             ])->first();
 
             //check if any next siganture require
-            $nextDocumentSent = $this->findNextDocumentSent($data);
             if ($nextDocumentSent) {
                 DocumentSignatureSent::where('id', $nextDocumentSent->id)->update([
-                    'next' => 1
+                    'next' => SignatureVisibleTypeEnum::SHOW()->value
                 ]);
                 //Send notification to next people
                 $this->doSendNotification($nextDocumentSent->id);
@@ -278,6 +277,12 @@ class DocumentSignatureMutator
                 $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update([
                     'status' => SignatureStatusTypeEnum::SUCCESS()->value,
                 ]);
+                // update passed people at document signature list when last people already signed
+                $updateMissedList = DocumentSignatureSent::where('ttd_id', $data->ttd_id)
+                                    ->where('status', SignatureStatusTypeEnum::WAITING()->value)
+                                    ->update([
+                                        'status' => SignatureStatusTypeEnum::MISSED()->value
+                                    ]);
                 //Send notification to sender
                 $this->doSendForwardNotification($data->id, $data->receiver->PeopleName);
             }
@@ -336,6 +341,14 @@ class DocumentSignatureMutator
 
             return $addFooter;
         } catch (\Throwable $th) {
+            $logData = [
+                'event' => 'esign_FOOTER_pdf',
+                'status' => 'ESIGN_FOOTER_FAILED_UNKNOWN',
+                'esign_source_file' => $data->documentSignature->url,
+                'esign_response' => $th,
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException('Gagal menambahkan QRCode dan text footer', 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali');
         }
     }

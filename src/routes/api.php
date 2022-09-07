@@ -4,6 +4,7 @@ use App\Http\Controllers\V1\SendNotificationController;
 use App\Http\Controllers\V1\DocumentDraftPdfController;
 use App\Http\Controllers\V1\LoggedUserCheckController;
 use App\Http\Controllers\V1\LogUserActivityController;
+use App\Http\Controllers\V1\DocumentDownloadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,8 +19,13 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    Route::prefix('v1')->group(function () {
+        Route::get('/documents/{type}/{id}/download', [DocumentDownloadController::class, '__invoke']);
+    });
 });
 
 Route::prefix('v1')->group(function () {

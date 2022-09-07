@@ -54,6 +54,11 @@ class Inbox extends Model
         return config('sikd.base_path_file');
     }
 
+    public function getUrlPublicAttribute()
+    {
+        return config('sikd.base_path_file') . $this->NFileDir . '/' . $this->documentFile->FileName_fake;
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(People::class, 'CreatedBy', 'PeopleId');

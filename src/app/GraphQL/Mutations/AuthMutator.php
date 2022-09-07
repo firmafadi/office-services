@@ -7,6 +7,7 @@ use App\Exceptions\CustomException;
 use App\Http\Traits\KafkaTrait;
 use App\Models\People;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Hash;
 
 class AuthMutator
 {
@@ -26,9 +27,25 @@ class AuthMutator
          * @var $people People
          */
         // TODO implement the resolver
-        $people = People::where('PeopleUsername', $args['input']['username'])->first();
+        $username = $args['input']['username'];
+        $people = People::where('PeopleUsername', $username)->first();
 
-        if (!$people || $people->PeopleIsActive == 0 || (sha1($args['input']['password']) != $people->PeoplePassword)) {
+        //check password
+        $checkPassword = false;
+        if ($people) {
+            if ($people->is_new_hash) {
+                $checkPassword = Hash::check($args['input']['password'], $people->PeoplePassword);
+            } else {
+                $checkPassword = (sha1($args['input']['password']) == $people->PeoplePassword) ? true : false;
+            }
+        }
+
+        if (!$people || $people->PeopleIsActive == 0 || $checkPassword == false) {
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'login',
+                'status' => KafkaStatusTypeEnum::LOGIN_INVALID_CREDENTIALS(),
+                'username' => $username,
+            ]);
             throw new CustomException(
                 'Invalid credential',
                 'Email and password are incorrect'
@@ -51,7 +68,7 @@ class AuthMutator
 
         $this->kafkaPublish('analytic_event', [
             'event' => 'login',
-            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'status' => KafkaStatusTypeEnum::LOGIN_SUCCESS(),
             'session_userdata' => $session_userdata,
         ]);
 

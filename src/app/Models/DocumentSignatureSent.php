@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ObjectiveTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
+use App\Enums\SignatureVisibleTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -123,7 +124,7 @@ class DocumentSignatureSent extends Model
                     ->pluck('id');
         }
 
-        $query->whereIn('id', Arr::collapse([$withReceiverId, $withSenderId]))->where('next', 1);
+        $query->whereIn('id', Arr::collapse([$withReceiverId, $withSenderId]))->where('next', SignatureVisibleTypeEnum::SHOW());
 
         $this->filterByStatus($query, $filter);
         return $query;
