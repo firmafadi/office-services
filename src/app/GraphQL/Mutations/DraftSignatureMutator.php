@@ -62,8 +62,13 @@ class DraftSignatureMutator
             $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
             $draft->save();
 
-            $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'esign_sign_draft',
+                'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+                'letter' => [
+                    'id' => $draftId
+                ]
+            ]);
 
             return $signature;
         } else {
