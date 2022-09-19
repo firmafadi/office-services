@@ -7,6 +7,7 @@ use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
+use App\Enums\SignatureStatusTypeEnum;
 use App\Models\DocumentSignatureSent;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -285,9 +286,12 @@ trait SignDocumentSignatureTrait
             //update status document sent to 1 (signed)
             $this->updateDocumentSignatureSentStatusAfterEsign($data, $esignMethod);
 
+            //Send notification status to who esign the document
+            $this->doSendNotificationSelf($data->id, $esignMethod);
+
             //check if any next siganture require
             if ($nextDocumentSent) {
-                $this->updateNextDocumentSent($$nextDocumentSent->id);
+                $this->updateNextDocumentSent($nextDocumentSent->id);
                 //Send notification to next people
                 $this->doSendNotification($nextDocumentSent->id, $esignMethod);
             } else { // if this is last people
@@ -344,6 +348,7 @@ trait SignDocumentSignatureTrait
             'body' => 'Anda telah berhasil melakukan TTE',
             'documentSignatureSentId' => $id,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
+            'status' => SignatureStatusTypeEnum::SIGNED()
         ];
 
         $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);

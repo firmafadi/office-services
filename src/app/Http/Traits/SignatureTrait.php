@@ -10,6 +10,7 @@ use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
+use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignatureSent;
@@ -270,6 +271,7 @@ trait SignatureTrait
                 'body' => $message['longMessage'],
                 'documentSignatureSentId' => $id,
                 'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
+                'status' => SignatureStatusTypeEnum::UNSIGNED()
             ];
 
             // set progress queue to failed
@@ -285,6 +287,7 @@ trait SignatureTrait
      * doSendNotificationDocumentSignature
      *
      * @param  array $sendToNotification
+     * @param  enum $esignMethod
      * @return mixed
      */
     public function doSendNotificationDocumentSignature($sendToNotification, $esignMethod)
@@ -298,7 +301,8 @@ trait SignatureTrait
                 'documentSignatureSentId' => $sendToNotification['documentSignatureSentId'],
                 'target' => $sendToNotification['target'],
                 'action' => FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL(),
-                'list' => FcmNotificationListTypeEnum::SIGNATURE()
+                'list' => FcmNotificationListTypeEnum::SIGNATURE(),
+                'status' => $sendToNotification['status']
             ]
         ];
 
