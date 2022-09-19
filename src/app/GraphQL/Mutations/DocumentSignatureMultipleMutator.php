@@ -28,6 +28,14 @@ class DocumentSignatureMultipleMutator
         $passphrase                     = Arr::get($args, 'input.passphrase');
         $splitDocumentSignatureSentIds  = explode(', ', $documentSignatureSentIds);
         $userId                         = auth()->user()->PeopleId;
+
+        if (count($splitDocumentSignatureSentIds) > config('sikd.maximum_multiple_esign')) {
+            throw new CustomException(
+                'Batas maksimal untuk melakukan multi-file esign adalah ' . config('sikd.maximum_multiple_esign') . ' dokumen',
+                'Permintaan Anda melewati batas maksimal untuk melakukan multi-file esign.'
+            );
+        }
+
         // set rule for queue only failed or null and non signed/rejected data
         $documentSignatureSents = DocumentSignatureSent::whereIn('id', $splitDocumentSignatureSentIds)
                                                         ->where('status', SignatureStatusTypeEnum::WAITING()->value)
