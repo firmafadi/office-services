@@ -100,4 +100,4 @@ ENV DOCKER_APP $DOCKER_APP
 EXPOSE 8080
 
 # Let supervisord start nginx & php-fpm
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT [ "docker/docker-entrypoint.sh" ]

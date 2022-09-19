@@ -18,6 +18,7 @@
         "mateusjunges/laravel-kafka": "^1.8",
         "mll-lab/laravel-graphql-playground": "^2.5",
         "nuwave/lighthouse": "^5.23",
+        "predis/predis": "^2.0",
         "sentry/sentry-laravel": "^2.8",
         "spatie/enum": "^3.9"
     },

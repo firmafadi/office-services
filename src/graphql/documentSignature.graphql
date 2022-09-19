@@ -22,6 +22,11 @@ input DocumentSignatureInput {
     passphrase: String!
 }
 
+input DocumentSignatureMultipleInput {
+    documentSignatureSentIds: String!
+    passphrase: String!
+}
+
 input DocumentSignaturRejectInput {
     documentSignatureSentId: String!
     note: String

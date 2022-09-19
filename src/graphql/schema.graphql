@@ -199,6 +199,10 @@ type Mutation {
         @field(resolver: "DocumentSignatureMutator@signature")
         @guard
 
+    documentSignatureMultiple(input: DocumentSignatureMultipleInput): [DocumentSignatureSent]
+        @field(resolver: "DocumentSignatureMultipleMutator@signature")
+        @guard
+
     draftSignature(input: DraftSignatureInput): Draft
         @field(resolver: "DraftSignatureMutator@signature")
         @guard

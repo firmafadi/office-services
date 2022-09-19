@@ -12,6 +12,7 @@ use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleIsActiveEnum;
 use App\Enums\SignatureDocumentTypeEnum;
+use App\Enums\SignatureMethodTypeEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\DraftTrait;
 use App\Http\Traits\KafkaTrait;
@@ -53,10 +54,10 @@ class DraftSignatureMutator
             throw new CustomException('Dokumen telah ditandatangan', 'Dokumen ini telah ditandatangani oleh Anda');
         }
 
+        $draft       = Draft::where('NId_temp', $draftId)->first();
         $setupConfig = $this->setupConfigSignature();
-        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
+        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT()));
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
-            $draft     = Draft::where('NId_temp', $draftId)->first();
             $signature = $this->doSignature($setupConfig, $draft, $passphrase);
 
             $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
@@ -72,7 +73,7 @@ class DraftSignatureMutator
 
             return $signature;
         } else {
-            $this->invalidResponseCheckUserSignature($checkUserResponse);
+            $this->invalidResponseCheckUserSignature($checkUserResponse, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
         }
     }
 
@@ -108,14 +109,14 @@ class DraftSignatureMutator
 
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
-            $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
+            $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
             throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
         } else {
             //Save new file & update status
             $draft = $this->saveNewFile($response, $draft, $verifyCode);
         }
         //Save log
-        $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
+        $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
 
         return $draft;
     }
