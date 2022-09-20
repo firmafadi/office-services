@@ -278,16 +278,16 @@ trait SignDocumentSignatureTrait
     {
         DB::beginTransaction();
         try {
-            //change filename with _signed & update stastus
-            if ($data->documentSignature->has_footer == false) {
-                $this->updateDocumentSignatureNewFileAction($data->ttd_id, $setNewFileData);
-            }
+            //update document after esign (set if new file or update last activity)
+            $this->updateDocumentSignatureAfterEsign($data, $setNewFileData);
 
             //update status document sent to 1 (signed)
             $this->updateDocumentSignatureSentStatusAfterEsign($data, $esignMethod);
 
-            //Send notification status to who esign the document
-            $this->doSendNotificationSelf($data->id, $esignMethod);
+            //Send notification status to who esign the document if multi-file esign
+            if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
+                $this->doSendNotificationSelf($data->id, $esignMethod);
+            }
 
             //check if any next siganture require
             if ($nextDocumentSent) {
@@ -329,6 +329,7 @@ trait SignDocumentSignatureTrait
             'body' => 'Terdapat naskah masuk untuk segera Anda tanda tangani secara digital. Klik disini untuk membaca dan menindaklanjuti pesan.',
             'documentSignatureSentId' => $nextDocumentSentId,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
+            'status' => SignatureStatusTypeEnum::SIGNED()
         ];
 
         $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);
@@ -369,6 +370,7 @@ trait SignDocumentSignatureTrait
             'body' => 'Naskah Anda telah di tandatangani oleh ' . $name . '. Klik disini untuk lihat naskah!',
             'documentSignatureSentId' => $id,
             'target' => DocumentSignatureSentNotificationTypeEnum::SENDER(),
+            'status' => SignatureStatusTypeEnum::SIGNED()
         ];
 
         $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);

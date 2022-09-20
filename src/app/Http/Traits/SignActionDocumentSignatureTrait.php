@@ -44,19 +44,22 @@ trait SignActionDocumentSignatureTrait
     }
 
     /**
-     * updateDocumentSignatureNewFileAction
+     * updateDocumentSignatureAfterEsign
      *
-     * @param  integer $documentId
+     * @param  collection $data
      * @param  array $setNewFileData
      * @return void
      */
-    protected function updateDocumentSignatureNewFileAction($documentId, $setNewFileData)
+    protected function updateDocumentSignatureAfterEsign($data, $setNewFileData)
     {
-        $updateFileData = DocumentSignature::where('id', $documentId)->update([
-            'file' => $setNewFileData['newFileName'],
-            'code' => $setNewFileData['verifyCode'],
-            'has_footer' => true,
-        ]);
+        //change filename with _signed & update stastus
+        $updateValue['last_activity'] = setDateTimeNowValue();
+        if ($data->documentSignature->has_footer == false) {
+            $updateValue['file']        = $setNewFileData['newFileName'];
+            $updateValue['code']        = $setNewFileData['verifyCode'];
+            $updateValue['has_footer']  = true;
+        }
+        $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update($updateValue);
 
         return $updateFileData;
     }
