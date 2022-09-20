@@ -60,7 +60,7 @@ input documentSignatureSentTimelineInput {
 
 input documentSignatureSentTimelinesInput {
     documentSignatureIds: String!
-    sort: String!
+    sorts: String!
     status: StatusType
 }
 
