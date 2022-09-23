@@ -35,4 +35,4 @@ jobs:
       with:
         file: docker/Dockerfile
         push: true
-        tags: ${{ secrets.HARBOR_SERVICE_IMAGENAME }}:dev-${{ steps.vars.outputs.sha_short }}
+        tags: ${{ secrets.HARBOR_SERVICE_IMAGENAME_STAGING }}:dev-${{ steps.vars.outputs.sha_short }}
