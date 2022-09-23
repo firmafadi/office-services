@@ -51,7 +51,7 @@ class Inbox extends Model
 
     public function getDocumentBaseUrlAttribute()
     {
-        if ($this->documentFile->Keterangan == 'inboxsuara') {
+        if ($this->documentFile?->Keterangan == 'inboxsuara') {
             return config('sikd.url');
         }
         return config('sikd.base_path_file');
