@@ -120,6 +120,7 @@ class InboxReceiver extends Model
         $this->filterByScope($query, $filter);
         $this->filterByFollowedUpStatus($query, $filter);
         $this->filterByActionLabel($query, $filter);
+        $this->filterBySenderDepts($query, $filter);
         return $query;
     }
 

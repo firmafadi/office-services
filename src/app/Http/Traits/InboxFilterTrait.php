@@ -331,6 +331,27 @@ trait InboxFilterTrait
     }
 
     /**
+     * Filtering by the sender depts ids
+     *
+     * @param Object $query
+     * @param Array  $filter
+     *
+     * @return Void
+     */
+    private function filterBySenderDepts($query, $filter)
+    {
+        $deptsIds = $filter['senderDepts'] ?? null;
+        if ($deptsIds) {
+            $arrayIds = explode(", ", $deptsIds);
+            $query->whereIn('From_Id', fn($query) => $query->select('PeopleId')
+                ->from('people')
+                ->whereIn('PrimaryRoleId', fn($query) => $query->select('RoleId')
+                    ->from('role')
+                    ->whereIn('RoleCode', $arrayIds)));
+        }
+    }
+
+    /**
      * Followed up status filter determination
      *
      * @param Object $query

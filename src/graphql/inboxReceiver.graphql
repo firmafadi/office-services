@@ -33,6 +33,7 @@ input FilterInput {
     followedUp: String
     scope: ScopeType
     actionLabels: String
+    senderDepts: String
 }
 
 input ForwardInput {
