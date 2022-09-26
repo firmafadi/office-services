@@ -68,15 +68,7 @@ class DocumentSignatureQuery
     public function detail($rootValue, array $args, GraphQLContext $context)
     {
         $documentSignatureSent = DocumentSignatureSent::where('id', $args['id'])->first();
-        $this->kafkaPublish('analytic_event', [
-            'event' => 'read_letter',
-            'status' => KafkaStatusTypeEnum::SUCCESS(),
-            'origin' => 'document_signature',
-            'letter' => [
-                'inbox_id' => $args['id']
-            ]
-        ]);
-
+        $this->readLog($args['id']);
         if (!$documentSignatureSent) {
             throw new CustomException(
                 'Document not found',
@@ -168,5 +160,23 @@ class DocumentSignatureQuery
         $documentSignature = $documentSignature->orderBy('urutan', 'DESC')->get();
 
         return $documentSignature;
+    }
+
+    /**
+     * Add logging
+     *
+     * @param  integer $letterId
+     * @return Void
+     */
+    protected function readLog($letterId)
+    {
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'origin' => 'document_signature',
+            'letter' => [
+                'inbox_id' => $letterId
+            ]
+        ]);
     }
 }
