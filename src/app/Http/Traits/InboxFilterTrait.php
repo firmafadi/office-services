@@ -331,7 +331,7 @@ trait InboxFilterTrait
     }
 
     /**
-     * Filtering by sender's dept name
+     * Filtering by the sender depts ids
      *
      * @param Object $query
      * @param Array  $filter
