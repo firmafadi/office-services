@@ -70,10 +70,7 @@ class DocumentSignatureQuery
         $documentSignatureSent = DocumentSignatureSent::where('id', $args['id'])->first();
         $this->readLog($args['id']);
         if (!$documentSignatureSent) {
-            throw new CustomException(
-                'Document not found',
-                'Document with this id not found'
-            );
+            throw new CustomException('Document not found', 'Document with this id not found');
         }
 
         //Check the inbox is readed or not
