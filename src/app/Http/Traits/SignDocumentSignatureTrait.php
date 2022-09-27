@@ -4,6 +4,7 @@ namespace App\Http\Traits;
 
 use App\Enums\BsreStatusTypeEnum;
 use App\Enums\DocumentSignatureSentNotificationTypeEnum;
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
@@ -172,7 +173,7 @@ trait SignDocumentSignatureTrait
         } catch (\Throwable $th) {
             $logData = [
                 'event' => 'esign_FOOTER_pdf',
-                'status' => 'ESIGN_FOOTER_FAILED_UNKNOWN',
+                'status' => KafkaStatusTypeEnum::ESIGN_FOOTER_FAILED_UNKNOWN(),
                 'esign_source_file' => $data->documentSignature->url,
                 'esign_response' => $th,
                 'message' => 'Gagal menambahkan QRCode dan text footer',
@@ -180,9 +181,8 @@ trait SignDocumentSignatureTrait
             ];
 
             $this->kafkaPublish('analytic_event', $logData);
-
             // Set return failure esign
-            $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
     }
 
@@ -204,65 +204,89 @@ trait SignDocumentSignatureTrait
         $nextDocumentSent = $this->findNextDocumentSent($data);
 
         //transfer to existing service
-        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $nextDocumentSent);
-        if ($response->status() != Response::HTTP_OK) {
-            $logData = [
-                'message' => 'Gagal menyambung ke webhook API',
-                'longMessage' => 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali'
-            ];
-            // Set return failure esign
-            $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
-        } else {
-            $data = $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $esignMethod);
-        }
-
+        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $nextDocumentSent, $esignMethod);
         Storage::disk('local')->delete($setNewFileData['newFileName']);
 
-        return $data;
+        if ($response->status() != Response::HTTP_OK) {
+            $logData = [
+                'event' => 'esign_transfer_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
+                'esign_source_file' => $data->documentSignature->url,
+                'esign_response' => $response,
+                'message' => 'Gagal melakukan transfer file eSign',
+                'longMessage' => 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali'
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
+            // Set return failure esign
+            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+        } else {
+            return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $esignMethod);
+        }
     }
 
     /**
      * doTransferFile
      *
-     * @param  collection $data
-     * @param  string $newFileName
-     *  @param collection $nextDocumentSent
+     * @param collection $data
+     * @param string $newFileName
+     * @param collection $nextDocumentSent
+     * @param enum $esignMethod
      * @return mixed
      */
-    protected function doTransferFile($data, $newFileName, $nextDocumentSent)
+    protected function doTransferFile($data, $newFileName, $nextDocumentSent, $esignMethod)
     {
-        // setup body request
-        $documentRequest = [
-            'first_tier' => false,
-            'last_tier' => false,
-            'document_name' => $data->documentSignature->file // original name file before renamed
+        try {
+            $documentRequest = [
+                'first_tier' => false,
+                'last_tier' => false,
+                'document_name' => $data->documentSignature->file // original name file before renamed
+            ];
+
+            if ($data->urutan == 1) {
+                // Remove original file (first tier)
+                $documentRequest['first_tier'] = true;
+            }
+
+            if (!$nextDocumentSent && $data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
+                // Remove draft file (last tier) if document didn't required to register before download/distribute
+                $documentRequest['last_tier'] = true;
+                $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
+            }
+
+            $fileSignatured = fopen(Storage::path($newFileName), 'r');
+            $response = Http::withHeaders([
+                'Secret' => config('sikd.webhook_secret'),
+            ])->attach('signature', $fileSignatured, $newFileName)->post(config('sikd.webhook_url'), $documentRequest);
+
+            return $response;
+        } catch (\Throwable $th) {
+            $logData = $this->logDataInvalidTransferFile($data, $th);
+            $this->kafkaPublish('analytic_event', $logData);
+            // Set return failure esign
+            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+        }
+    }
+
+    /**
+     * logDataInvalidTransferFile
+     *
+     * @param  collection $data
+     * @param  mixed $th
+     * @return array
+     */
+    protected function logDataInvalidTransferFile($data, $th)
+    {
+        $logData = [
+            'event' => 'esign_transfer_pdf',
+            'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
+            'esign_source_file' => $data->documentSignature->url,
+            'esign_response' => $th,
+            'message' => 'Gagal terhubung untuk transfer file eSign',
+            'longMessage' => 'Gagal terhubung untuk memindahkan file tertandatangani ke webhook, silahkan coba kembali'
         ];
-        // check if this esign is first tier
-        if ($data->urutan == 1) {
-            $documentRequest['first_tier'] = true;
-        }
 
-        if (!$nextDocumentSent && $data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
-            $documentRequest['last_tier'] = true;
-            $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
-        }
-
-        $fileSignatured = fopen(Storage::path($newFileName), 'r');
-        /**
-         * This code will running :
-         * Transfer file to service existing
-         * Remove original file (first tier)
-         * Remove draft file (last tier) if document didn't required to register before download/distribute
-        **/
-        $response = Http::withHeaders([
-            'Secret' => config('sikd.webhook_secret'),
-        ])->attach(
-            'signature',
-            $fileSignatured,
-            $newFileName
-        )->post(config('sikd.webhook_url'), $documentRequest);
-
-        return $response;
+        return $logData;
     }
 
     /**
@@ -309,7 +333,7 @@ trait SignDocumentSignatureTrait
                 'longMessage' => $th->getMessage()
             ];
             // Set return failure esign
-            $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
 
         return $data;

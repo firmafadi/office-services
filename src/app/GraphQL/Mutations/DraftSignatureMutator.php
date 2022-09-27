@@ -114,11 +114,10 @@ class DraftSignatureMutator
         } else {
             //Save new file & update status
             $draft = $this->saveNewFile($response, $draft, $verifyCode);
+            //Save log
+            $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
+            return $draft;
         }
-        //Save log
-        $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
-
-        return $draft;
     }
 
     /**
