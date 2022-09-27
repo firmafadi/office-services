@@ -231,6 +231,10 @@ type Mutation {
     distributeInbox(input: DistributeInboxInput): Inbox!
         @field(resolver: "DistributeInboxMutator@distributeInbox")
         @guard
+    
+    modifyInboxStatusRead(id: String!): InboxReceiver!
+        @field(resolver: "InboxMutator@modfyStatusRead")
+        @guard
 }
 
 #import auth.graphql
