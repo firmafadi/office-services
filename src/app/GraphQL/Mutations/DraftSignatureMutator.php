@@ -29,6 +29,7 @@ use App\Models\TableSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -142,7 +143,17 @@ class DraftSignatureMutator
 
             return $addFooter;
         } catch (\Throwable $th) {
-            throw new CustomException('Gagal menambahkan QRCode dan text footer', 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali');
+            $logData = [
+                'event' => 'esign_FOOTER_DRAFT_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_FOOTER_FAILED_UNKNOWN(),
+                'esign_source_file' => $draft->draft_file . '?esign=true',
+                'esign_response' => $th,
+                'message' => 'Gagal menambahkan QRCode dan text footer',
+                'longMessage' => 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali'
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException($logData['message'], $logData['longMessage']);
         }
     }
 
@@ -159,16 +170,21 @@ class DraftSignatureMutator
         //save signed data
         Storage::disk('local')->put($draft->document_file_name, $pdf->body());
 
-        try {
-            //transfer to existing service
-            $response = $this->doTransferFile($draft);
-            if ($response->status() != Response::HTTP_OK) {
-                throw new CustomException('Webhook failed', json_decode($response));
-            }
-            $this->doSaveSignature($draft, $verifyCode);
-        } catch (\Throwable $th) {
-            throw new CustomException('Gagal menyambung ke webhook API', 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali');
+        $response = $this->doTransferFile($draft);
+        if ($response->status() != Response::HTTP_OK) {
+            $logData = [
+                'event' => 'esign_transfer_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
+                'esign_source_file' => $draft->document_file_name,
+                'esign_response' => $response,
+                'message' => 'Gagal melakukan transfer file eSign',
+                'longMessage' => 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali'
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException($logData['message'], $logData['longMessage']);
         }
+        $this->doSaveSignature($draft, $verifyCode);
         //remove temp data
         Storage::disk('local')->delete($draft->document_file_name);
 
@@ -183,12 +199,24 @@ class DraftSignatureMutator
      */
     public function doTransferFile($draft)
     {
-        $fileSignatured = fopen(Storage::path($draft->document_file_name), 'r');
-        $response = Http::withHeaders([
-            'Secret' => config('sikd.webhook_secret'),
-        ])->attach('draft', $fileSignatured)->post(config('sikd.webhook_url'));
+        try {
+            $fileSignatured = fopen(Storage::path($draft->document_file_name), 'r');
+            $response = Http::withHeaders([
+                'Secret' => config('sikd.webhook_secret'),
+            ])->attach('draft', $fileSignatured)->post(config('sikd.webhook_url'));
 
-        return $response;
+            return $response;
+        } catch (\Throwable $th) {
+            $logData = [
+                'event' => 'esign_transfer_draft_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
+                'esign_source_file' => $draft->document_file_name,
+                'esign_response' => $th,
+                'message' => 'Gagal terhubung untuk transfer file eSign',
+                'longMessage' => 'Gagal terhubung untuk memindahkan file tertandatangani ke webhook, silahkan coba kembali'
+            ];
+            throw new CustomException($logData['message'], $logData['longMessage']);
+        }
     }
 
     /**
@@ -199,6 +227,32 @@ class DraftSignatureMutator
      * @return mixed
      */
     protected function doSaveSignature($draft, $verifyCode)
+    {
+        DB::beginTransaction();
+        try {
+            $signature = $this->updateDataDraftAfterEsign($draft, $verifyCode);
+
+            DB::commit();
+            return $signature;
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            $logData = [
+                'message' => 'Gagal menyimpan perubahan data',
+                'longMessage' => $th->getMessage()
+            ];
+            // Set return failure esign
+            throw new CustomException($logData['message'], $logData['longMessage']);
+        }
+    }
+
+    /**
+     * updateDataDraftAfterEsign
+     *
+     * @param  mixed $draft
+     * @param  mixed $verifyCode
+     * @return void
+     */
+    protected function updateDataDraftAfterEsign($draft, $verifyCode)
     {
         $signature = new Signature();
         $signature->NId    = $draft->NId_Temp;
@@ -220,6 +274,7 @@ class DraftSignatureMutator
         if (!in_array($draft->Ket, array_keys($draftReceiverAsToTarget))) {
             $this->forwardSaveInboxReceiverCorrection($draft, $draftReceiverAsToTarget);
         }
+
         return $signature;
     }
 
