@@ -218,16 +218,7 @@ trait InboxFilterTrait
      */
     private function queryInternalScope($query, $filter)
     {
-        $receiverTypes = $filter['receiverTypes'] ?? null;
-        $arrayReceiverTypes = explode(', ', $receiverTypes);
-        $userRoleId = auth()->user()->PrimaryRoleId;
-        if ($userRoleId == PeopleRoleIdTypeEnum::GOVERNOR()) {
-            $this->queryInternalScopeGovernor($query);
-        } elseif ($receiverTypes && $arrayReceiverTypes[0] == 'to_forward') {
-            $query->whereRelation('sender', 'GroupId', '!=', PeopleGroupTypeEnum::UK());
-        } elseif (auth()->user()->role?->RoleCode) {
-            $query->whereRelation('sender.role', 'RoleCode', '=', auth()->user()->role->RoleCode);
-        }
+        $this->queryInternalScopeProv($query);
     }
 
     /**
@@ -245,13 +236,13 @@ trait InboxFilterTrait
     }
 
     /**
-     * Query INTERNAL scope filter for Governor
+     * Query INTERNAL Province scope filter
      *
      * @param Object $query
      *
      * @return Void
      */
-    private function queryInternalScopeGovernor($query)
+    private function queryInternalScopeProv($query)
     {
         $query->where(
             fn($query) => $query
