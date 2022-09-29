@@ -49,17 +49,34 @@ class Inbox extends Model
         return $this->draft()->exists();
     }
 
+    public function checkFile($file)
+    {
+        $headers = @get_headers($file);
+        if ($headers && in_array('Content-Type: application/pdf', $headers)) {
+            return $file;
+        }
+        return false;
+    }
+
     public function getDocumentBaseUrlAttribute()
     {
         if ($this->documentFile?->Keterangan == 'inboxsuara') {
-            return config('sikd.url');
+            $checkFile = $this->checkFile(config('sikd.base_path_file') . $this->NFileDir . '/' . $this->documentFile->FileName_fake);
+            if ($checkFile == false) {
+                return config('sikd.url_suara');
+            }
         }
+
         return config('sikd.base_path_file');
     }
 
     public function getUrlPublicAttribute()
     {
-        return $this->document_base_url . $this->NFileDir . '/' . $this->documentFile->FileName_fake;
+        if ($this->documentFile?->FileName_fake) {
+            return $this->document_base_url . $this->NFileDir . '/' . $this->documentFile->FileName_fake;
+        }
+
+        return null;
     }
 
     public function createdBy()

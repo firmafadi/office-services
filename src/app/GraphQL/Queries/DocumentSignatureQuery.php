@@ -2,9 +2,11 @@
 
 namespace App\GraphQL\Queries;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\ObjectiveTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 use App\Models\DocumentSignatureSentRead;
@@ -13,6 +15,8 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class DocumentSignatureQuery
 {
+    use KafkaTrait;
+
     /**
      * @param $rootValue
      * @param array                                                    $args
@@ -64,12 +68,9 @@ class DocumentSignatureQuery
     public function detail($rootValue, array $args, GraphQLContext $context)
     {
         $documentSignatureSent = DocumentSignatureSent::where('id', $args['id'])->first();
-
+        $this->readLog($args['id']);
         if (!$documentSignatureSent) {
-            throw new CustomException(
-                'Document not found',
-                'Document with this id not found'
-            );
+            throw new CustomException('Document not found', 'Document with this id not found');
         }
 
         //Check the inbox is readed or not
@@ -156,5 +157,23 @@ class DocumentSignatureQuery
         $documentSignature = $documentSignature->orderBy('urutan', 'DESC')->get();
 
         return $documentSignature;
+    }
+
+    /**
+     * Add logging
+     *
+     * @param  integer $letterId
+     * @return Void
+     */
+    protected function readLog($letterId)
+    {
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'origin' => 'document_signature',
+            'letter' => [
+                'inbox_id' => $letterId
+            ]
+        ]);
     }
 }

@@ -10,6 +10,7 @@ use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleProposedTypeEnum;
 use App\Enums\PeopleRoleIdTypeEnum;
+use App\Exceptions\CustomException;
 use App\Http\Traits\KafkaTrait;
 use App\Http\Traits\SendNotificationTrait;
 use App\Models\Draft;
@@ -504,5 +505,40 @@ class InboxMutator
             }
         }
         return $list;
+    }
+
+    /**
+     * Modify inbox status to read/unread
+     *
+     * @param $rootValue
+     * @param $args
+     *
+     * @throws \Exception
+     *
+     * @return String
+     */
+    public function modfyStatusRead($rootValue, array $args)
+    {
+        $status = 'unread';
+        $inboxReceiver = InboxReceiver::find($args['id']);
+        if (!$inboxReceiver) {
+            throw new CustomException('Inbox not found', 'Inbox with this id is not found');
+        }
+        if ($inboxReceiver->To_Id != auth()->user()->PeopleId) {
+            throw new CustomException('Unauthorized', 'Access restriction');
+        }
+        // Change status read
+        if ($inboxReceiver->StatusReceive === $status) {
+            $status = 'read';
+        }
+        $inboxReceiver->update(['StatusReceive' => $status]);
+        $this->kafkaPublish('analytic_event', [
+            'event' => $status . '_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'letter' => [
+                'inbox_id' => $inboxReceiver->NId
+            ]
+        ]);
+        return $inboxReceiver;
     }
 }

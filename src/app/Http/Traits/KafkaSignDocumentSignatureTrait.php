@@ -39,7 +39,7 @@ trait KafkaSignDocumentSignatureTrait
             'event' => 'document_not_found_signature_sent',
             'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_NOFILE(),
             'message' => 'Dokumen tidak tersedia',
-            'long_message' => 'Dokumen yang akan ditandatangi tidak tersedia'
+            'longMessage' => 'Dokumen yang akan ditandatangani tidak tersedia'
         ];
 
         return $logData;
