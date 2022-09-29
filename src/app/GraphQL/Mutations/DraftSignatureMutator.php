@@ -237,6 +237,10 @@ class DraftSignatureMutator
         } catch (\Throwable $th) {
             DB::rollBack();
             $logData = [
+                'event' => 'esign_update_status_draft_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_INVALID_UPDATE_STATUS_AND_DATA(),
+                'esign_source_file' => $draft->document_file_name,
+                'response' => $th,
                 'message' => 'Gagal menyimpan perubahan data',
                 'longMessage' => $th->getMessage()
             ];

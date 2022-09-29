@@ -328,15 +328,33 @@ trait SignDocumentSignatureTrait
             DB::commit();
         } catch (\Throwable $th) {
             DB::rollBack();
-            $logData = [
-                'message' => 'Gagal menyimpan perubahan data',
-                'longMessage' => $th->getMessage()
-            ];
+            $logData = $this->setLogFailedUpdateDataAfterEsign($data, $th);
+            $this->kafkaPublish('analytic_event', $logData);
+
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
 
         return $data;
+    }
+
+    /**
+     * setLogFailedUpdateDataAfterEsign
+     *
+     * @param  collection $data
+     * @param  mixed $th
+     * @return array
+     */
+    protected function setLogFailedUpdateDataAfterEsign($data, $th)
+    {
+        return [
+            'event' => 'esign_update_status_document_upload_pdf',
+            'status' => KafkaStatusTypeEnum::ESIGN_INVALID_UPDATE_STATUS_AND_DATA(),
+            'esign_source_file' => $data->documentSignature->url,
+            'response' => $th,
+            'message' => 'Gagal menyimpan perubahan data',
+            'longMessage' => $th->getMessage()
+        ];
     }
 
     /**

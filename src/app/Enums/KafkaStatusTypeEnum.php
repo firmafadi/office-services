@@ -16,6 +16,7 @@ use Spatie\Enum\Enum;
  * @method static self LOGIN_INVALID_CREDENTIALS()
  * @method static self ESIGN_TRANSFER_FAILED_FROM_MOBILE()
  * @method static self ESIGN_FOOTER_FAILED_UNKNOWN()
+ * @method static self ESIGN_INVALID_UPDATE_STATUS_AND_DATA()
 
  */
 
