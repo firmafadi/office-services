@@ -310,7 +310,7 @@ trait SignDocumentSignatureTrait
 
             //Send notification status to who esign the document if multi-file esign
             if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
-                $this->doSendNotificationSelf($data->id, $esignMethod);
+                $this->doSendNotificationSelf($data, $esignMethod);
             }
 
             //check if any next siganture require
@@ -384,12 +384,12 @@ trait SignDocumentSignatureTrait
      * @param  enum $esignMethod
      * @return void
      */
-    protected function doSendNotificationSelf($id, $esignMethod)
+    protected function doSendNotificationSelf($data, $esignMethod)
     {
         $sendToNotification = [
             'title' => 'TTE Berhasil',
-            'body' => 'Anda telah berhasil melakukan TTE',
-            'documentSignatureSentId' => $id,
+            'body' => 'Naskah ' . $data->documentSignature->nama_file . ' telah berhasil di tandatangani oleh Anda',
+            'documentSignatureSentId' => $data->id,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
             'status' => SignatureStatusTypeEnum::SIGNED()
         ];
