@@ -128,10 +128,10 @@ trait SignatureTrait
      */
     public function setPassphraseSessionLog($response, $data, $documentType, $documentSignatureEsignData = null)
     {
+        $identifyDocument = $this->doIdentifyDocument($documentType, $data);
         try {
             $userId = ($documentSignatureEsignData != null) ? $documentSignatureEsignData['userId'] : null; // send null value if documentSignatureEsignData equal null
             $userData = $this->setUserData($userId);
-            $identifyDocument = $this->doIdentifyDocument($documentType, $data);
 
             $passphraseSession = $this->savePassphraseSessionLog($response, $userData, $identifyDocument, $documentType);
 
@@ -228,6 +228,7 @@ trait SignatureTrait
 
     /**
      * setUserData
+     * GET from DB for jobs function
      *
      * @param  integer $userId
      * @return object
