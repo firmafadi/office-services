@@ -208,15 +208,7 @@ trait SignDocumentSignatureTrait
         Storage::disk('local')->delete($setNewFileData['newFileName']);
 
         if ($response->status() != Response::HTTP_OK) {
-            $logData = [
-                'event' => 'esign_transfer_pdf',
-                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
-                'esign_source_file' => $data->documentSignature->url,
-                'esign_response' => $response,
-                'message' => 'Gagal melakukan transfer file eSign',
-                'longMessage' => 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali'
-            ];
-
+            $logData = $this->logInvalidTransferFile('esign_transfer_pdf', $data->documentSignature->url, $response);
             $this->kafkaPublish('analytic_event', $logData);
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
@@ -261,32 +253,11 @@ trait SignDocumentSignatureTrait
 
             return $response;
         } catch (\Throwable $th) {
-            $logData = $this->logDataInvalidTransferFile($data, $th);
+            $logData = $this->logInvalidConnectTransferFile('esign_transfer_pdf', $data->documentSignature->url, $th);
             $this->kafkaPublish('analytic_event', $logData);
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
-    }
-
-    /**
-     * logDataInvalidTransferFile
-     *
-     * @param  collection $data
-     * @param  mixed $th
-     * @return array
-     */
-    protected function logDataInvalidTransferFile($data, $th)
-    {
-        $logData = [
-            'event' => 'esign_transfer_pdf',
-            'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
-            'esign_source_file' => $data->documentSignature->url,
-            'esign_response' => $th,
-            'message' => 'Gagal terhubung untuk transfer file eSign',
-            'longMessage' => 'Gagal terhubung untuk memindahkan file tertandatangani ke webhook, silahkan coba kembali'
-        ];
-
-        return $logData;
     }
 
     /**

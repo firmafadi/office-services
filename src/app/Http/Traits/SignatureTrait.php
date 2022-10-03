@@ -217,17 +217,13 @@ trait SignatureTrait
      */
     public function setDefaultLogData($response, $identifyDocument, $type)
     {
-        return [
-            'event' => 'esign_sign_pdf',
-            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
-            'letter' => [
-                'id' => $identifyDocument['id'],
-                'type' => $type
-            ],
-            'esign_source_file' => $identifyDocument['file'],
-            'esign_response_http_code' => $response->status(),
-            'esign_response' => $response,
-        ];
+        $logData                                = $this->setBasicEsignLogAttribute('esign_sign_pdf', $identifyDocument['file'], $response);
+        $logData['status']                      = KafkaStatusTypeEnum::ESIGN_SUCCESS();
+        $logData['letter']['id']                = $identifyDocument['id'];
+        $logData['letter']['type']              = $type;
+        $logData['esign_response_http_code']    = $response->status();
+
+        return $logData;
     }
 
     /**
@@ -311,5 +307,50 @@ trait SignatureTrait
         }
 
         $this->setupDocumentSignatureSentNotification($messageAttribute);
+    }
+
+    protected function sesetBasicEsignLogAttributet($event, $source, $response)
+    {
+        return [
+            'event'             => $event,
+            'esign_source_file' => $source,
+            'esign_response'    => $response,
+        ];
+    }
+
+    /**
+     * logDataInvalidTransferFile
+     *
+     * @param  string $event
+     * @param  string $source
+     * @param  mixed $response
+     * @return array
+     */
+    protected function logInvalidConnectTransferFile($event, $source, $response)
+    {
+        $logData                = $this->setBasicEsignLogAttribute($event, $source, $response);
+        $logData['status']      = KafkaStatusTypeEnum::ESIGN_TRANSFER_NOT_CONNECT();
+        $logData['message']     = 'Gagal terhubung untuk transfer file eSign';
+        $logData['longMessage'] = 'Gagal terhubung untuk memindahkan file tertandatangani ke webhook, silahkan coba kembali';
+
+        return $logData;
+    }
+
+    /**
+     * logDataInvalidTransferFile
+     *
+     * @param  string $event
+     * @param  string $source
+     * @param  mixed $response
+     * @return array
+     */
+    protected function logInvalidTransferFile($event, $source, $response)
+    {
+        $logData                = $this->setBasicEsignLogAttribute($event, $source, $response);
+        $logData['status']      = KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED();
+        $logData['message']     = 'Gagal melakukan transfer file eSign';
+        $logData['longMessage'] = 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali';
+
+        return $logData;
     }
 }
