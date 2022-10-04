@@ -310,7 +310,15 @@ trait SignatureTrait
         $this->setupDocumentSignatureSentNotification($messageAttribute);
     }
 
-    protected function sesetBasicEsignLogAttributet($event, $source, $response)
+    /**
+     * setBasicEsignLogAttribute
+     *
+     * @param  mixed $event
+     * @param  mixed $source
+     * @param  mixed $response
+     * @return void
+     */
+    protected function setBasicEsignLogAttribute($event, $source, $response)
     {
         return [
             'event'             => $event,

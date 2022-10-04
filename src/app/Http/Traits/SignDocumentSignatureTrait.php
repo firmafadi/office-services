@@ -95,7 +95,7 @@ trait SignDocumentSignatureTrait
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
             //Save new file & update status
-            $data = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData['esignMethod']);
+            $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData['esignMethod']);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
             return $data;
         }
@@ -281,7 +281,7 @@ trait SignDocumentSignatureTrait
 
             //Send notification status to who esign the document if multi-file esign
             if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
-                $this->doSendNotificationSelf($data, $esignMethod);
+                $this->doSendNotificationSelf($data->id, $esignMethod);
             }
 
             //check if any next siganture require
@@ -351,16 +351,16 @@ trait SignDocumentSignatureTrait
     /**
      * doSendNotification
      *
-     * @param  object $data
+     * @param  integer $id
      * @param  enum $esignMethod
      * @return void
      */
-    protected function doSendNotificationSelf($data, $esignMethod)
+    protected function doSendNotificationSelf($id, $esignMethod)
     {
         $sendToNotification = [
             'title' => 'TTE Berhasil',
-            'body' => 'Naskah ' . $data->documentSignature->nama_file . ' telah berhasil di tandatangani oleh Anda',
-            'documentSignatureSentId' => $data->id,
+            'body' => 'Anda telah berhasil di tandatangani oleh Anda',
+            'documentSignatureSentId' => $id,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
             'status' => SignatureStatusTypeEnum::SIGNED()
         ];
