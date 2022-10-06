@@ -3,6 +3,7 @@
 return [
 
     'url' => env('SIKD_BASE_URL'),
+    'url_suara' => env('SIKD_BASE_URL_SUARA'),
     'webhook_url' => env('SIKD_WEBHOOK_URL'),
     'webhook_distribute_document' => env('SIKD_WEBHOOK_DISTRIBUTE_DOCUMENT_URL'),
     'webhook_secret' => env('SIKD_WEBHOOK_SECRET'),
