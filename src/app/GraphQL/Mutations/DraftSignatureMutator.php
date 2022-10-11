@@ -137,7 +137,7 @@ class DraftSignatureMutator
 
             return $addFooter;
         } catch (\Throwable $th) {
-            throw new CustomException('Gagal menambahkan QRCode dan text footer', 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali');
+            throw new CustomException('Gagal menambahkan QRCode dan text footer', $th);
         }
     }
 
@@ -151,23 +151,20 @@ class DraftSignatureMutator
      */
     protected function saveNewFile($pdf, $draft, $verifyCode)
     {
-        //save signed data
+        ///save signed data
         Storage::disk('local')->put($draft->document_file_name, $pdf->body());
 
-        try {
-            //transfer to existing service
-            $response = $this->doTransferFile($draft);
-            if ($response->status() != Response::HTTP_OK) {
-                throw new CustomException('Webhook failed', json_decode($response));
-            }
+        $response = $this->doTransferFile($draft);
+        if ($response->status() != Response::HTTP_OK) {
+            $logData = $this->logInvalidTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $response);
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException($logData['message'], $logData['longMessage']);
+        } else {
             $this->doSaveSignature($draft, $verifyCode);
-        } catch (\Throwable $th) {
-            throw new CustomException('Gagal menyambung ke webhook API', 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali');
+            //remove temp data
+            Storage::disk('local')->delete($draft->document_file_name);
+            return $draft;
         }
-        //remove temp data
-        Storage::disk('local')->delete($draft->document_file_name);
-
-        return $draft;
     }
 
     /**
@@ -178,12 +175,18 @@ class DraftSignatureMutator
      */
     public function doTransferFile($draft)
     {
-        $fileSignatured = fopen(Storage::path($draft->document_file_name), 'r');
-        $response = Http::withHeaders([
-            'Secret' => config('sikd.webhook_secret'),
-        ])->attach('draft', $fileSignatured)->post(config('sikd.webhook_url'));
+        try {
+            $fileSignatured = fopen(Storage::path($draft->document_file_name), 'r');
+            $response = Http::withHeaders([
+                'Secret' => config('sikd.webhook_secret'),
+            ])->attach('draft', $fileSignatured)->post(config('sikd.webhook_url'));
 
-        return $response;
+            return $response;
+        } catch (\Throwable $th) {
+            $logData = $this->logInvalidConnectTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $th);
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException($logData['message'], $logData['longMessage']);
+        }
     }
 
     /**

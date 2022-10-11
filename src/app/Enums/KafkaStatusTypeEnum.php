@@ -14,7 +14,8 @@ use Spatie\Enum\Enum;
  * @method static self ESIGN_SUCCESS()
  * @method static self LOGIN_SUCCESS()
  * @method static self LOGIN_INVALID_CREDENTIALS()
-
+ * @method static self ESIGN_TRANSFER_NOT_CONNECT()
+ * @method static self ESIGN_TRANSFER_FAILED()
  */
 
 final class KafkaStatusTypeEnum extends Enum
