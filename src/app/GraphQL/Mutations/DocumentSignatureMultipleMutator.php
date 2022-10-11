@@ -24,9 +24,8 @@ class DocumentSignatureMultipleMutator
      */
     public function signature($rootValue, array $args)
     {
-        $documentSignatureSentIds       = Arr::get($args, 'input.documentSignatureSentIds');
         $passphrase                     = Arr::get($args, 'input.passphrase');
-        $splitDocumentSignatureSentIds  = explode(', ', $documentSignatureSentIds);
+        $splitDocumentSignatureSentIds  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
         $userId                         = auth()->user()->PeopleId;
 
         if (count($splitDocumentSignatureSentIds) > config('sikd.maximum_multiple_esign')) {
@@ -42,8 +41,7 @@ class DocumentSignatureMultipleMutator
                                                         ->where(function ($query) {
                                                             $query->whereNull('progress_queue')
                                                                   ->orWhere('progress_queue', SignatureQueueTypeEnum::FAILED());
-                                                        })
-                                                        ->get();
+                                                        })->get();
 
         if ($documentSignatureSents->isEmpty()) {
             throw new CustomException(
@@ -52,7 +50,9 @@ class DocumentSignatureMultipleMutator
             );
         }
 
-        ProcessMultipleEsignDocument::dispatch($documentSignatureSents, $passphrase, $userId);
+        foreach ($documentSignatureSents as $documentSignatureSent) {
+            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $passphrase, $userId);
+        }
 
         return $documentSignatureSents;
     }
