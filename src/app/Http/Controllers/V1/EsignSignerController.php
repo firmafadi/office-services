@@ -21,6 +21,7 @@ class EsignSignerController extends Controller
         $records = People::select('NIP', 'PeopleName as name', 'PeoplePosition as position')
             ->whereNotNull('NIP')
             ->where('PeopleIsActive', PeopleIsActiveEnum::ACTIVE())
+            ->where('is_visible_at_assign_document', true)
             ->paginate($limit);
         return $records;
     }
