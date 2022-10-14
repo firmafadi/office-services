@@ -16,7 +16,7 @@ class DocumentSignature extends Model
     protected $table = 'm_ttd';
 
     public $timestamps = false;
-    protected $appends = ['status_name', 'url_public'];
+    protected $appends = ['status_name', 'file_url'];
 
     public function getUrlAttribute()
     {
@@ -101,6 +101,11 @@ class DocumentSignature extends Model
             default => SignatureStatusTypeEnum::WAITING()->label
         };
         return $statusName;
+    }
+
+    public function getFileUrlAttribute()
+    {
+        return url('/') . '/api/v1/esign/documents/' . $this->id . '/file';
     }
 
     public function people()

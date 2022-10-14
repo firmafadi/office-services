@@ -18,7 +18,7 @@ class EsignDocumentCheckStatusController extends Controller
     {
         $ids = explode(',', $request->input('ids'));
         $limit = $request->input('limit', 20);
-        $records = DocumentSignature::select('id', 'file', 'status as status_id')
+        $records = DocumentSignature::select('id', 'status as status_id')
             ->whereIn('id', $ids)
             ->paginate($limit);
         return $records;
