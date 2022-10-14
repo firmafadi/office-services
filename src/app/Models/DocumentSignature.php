@@ -16,6 +16,7 @@ class DocumentSignature extends Model
     protected $table = 'm_ttd';
 
     public $timestamps = false;
+    protected $appends = ['status_name', 'url_public'];
 
     public function getUrlAttribute()
     {
@@ -85,6 +86,21 @@ class DocumentSignature extends Model
         }
 
         return null;
+    }
+
+    public function getStatusNameAttribute()
+    {
+        $status = $this->status;
+        if (!$status) {
+            $status = $this->status_id;
+        }
+        $statusName = match ($status) {
+            SignatureStatusTypeEnum::SUCCESS()->value => SignatureStatusTypeEnum::SUCCESS()->label,
+            SignatureStatusTypeEnum::REJECT()->value => SignatureStatusTypeEnum::REJECT()->label,
+            SignatureStatusTypeEnum::MISSED()->value => SignatureStatusTypeEnum::MISSED()->label,
+            default => SignatureStatusTypeEnum::WAITING()->label
+        };
+        return $statusName;
     }
 
     public function people()
