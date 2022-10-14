@@ -25,6 +25,7 @@ input DocumentSignatureInput {
 input DocumentSignatureMultipleInput {
     documentSignatureSentIds: String!
     passphrase: String!
+    fcm_token: String
 }
 
 input DocumentSignaturRejectInput {

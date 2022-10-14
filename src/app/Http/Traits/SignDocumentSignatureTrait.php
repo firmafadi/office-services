@@ -95,7 +95,7 @@ trait SignDocumentSignatureTrait
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
             //Save new file & update status
-            $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData['esignMethod']);
+            $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
             return $data;
         }
@@ -192,10 +192,10 @@ trait SignDocumentSignatureTrait
      * @param  object $response
      * @param  collection $data
      * @param  array $setNewFileData
-     * @param  array $esignMethod
+     * @param  array $documentSignatureEsignData
      * @return collection
      */
-    protected function saveNewFile($pdf, $data, $setNewFileData, $esignMethod)
+    protected function saveNewFile($pdf, $data, $setNewFileData, $documentSignatureEsignData)
     {
         //save to storage path for temporary file
         Storage::disk('local')->put($setNewFileData['newFileName'], $pdf->body());
@@ -204,16 +204,16 @@ trait SignDocumentSignatureTrait
         $nextDocumentSent = $this->findNextDocumentSent($data);
 
         //transfer to existing service
-        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $nextDocumentSent, $esignMethod);
+        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $nextDocumentSent, $documentSignatureEsignData['esignMethod']);
         Storage::disk('local')->delete($setNewFileData['newFileName']);
 
         if ($response->status() != Response::HTTP_OK) {
             $logData = $this->logInvalidTransferFile('esign_transfer_pdf', $data->documentSignature->url, $response);
             $this->kafkaPublish('analytic_event', $logData);
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
-            return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $esignMethod);
+            return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
         }
     }
 
@@ -266,10 +266,10 @@ trait SignDocumentSignatureTrait
      * @param  collection $data
      * @param  array $setNewFileData
      * @param  collection $nextDocumentSent
-     * @param  array $esignMethod
+     * @param  array $documentSignatureEsignData
      * @return collection
      */
-    protected function updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $esignMethod)
+    protected function updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData)
     {
         DB::beginTransaction();
         try {
@@ -277,24 +277,24 @@ trait SignDocumentSignatureTrait
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData);
 
             //update status document sent to 1 (signed)
-            $this->updateDocumentSignatureSentStatusAfterEsign($data, $esignMethod);
+            $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
 
             //Send notification status to who esign the document if multi-file esign
-            if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
-                $this->doSendNotificationSelf($data->id, $esignMethod);
+            if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+                $this->doSendNotificationSelf($data->id, $documentSignatureEsignData);
             }
 
             //check if any next siganture require
             if ($nextDocumentSent) {
                 $this->updateNextDocumentSent($nextDocumentSent->id);
                 //Send notification to next people
-                $this->doSendNotification($nextDocumentSent->id, $esignMethod);
+                $this->doSendNotification($nextDocumentSent->id, $documentSignatureEsignData['esignMethod']);
             } else { // if this is last people
                 $this->updateDocumentSignatureLastPeopleAction($data->ttd_id);
                 // update passed people at document signature list when last people already signed
                 $this->updateDocumentSignatureSentMissedAction($data->ttd_id);
                 //Send notification to sender
-                $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $esignMethod);
+                $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $documentSignatureEsignData['esignMethod']);
             }
             DB::commit();
         } catch (\Throwable $th) {
@@ -303,7 +303,7 @@ trait SignDocumentSignatureTrait
             $this->kafkaPublish('analytic_event', $logData);
 
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
 
         return $data;
@@ -352,10 +352,10 @@ trait SignDocumentSignatureTrait
      * doSendNotification
      *
      * @param  integer $id
-     * @param  enum $esignMethod
+     * @param  array $documentSignatureEsignData
      * @return void
      */
-    protected function doSendNotificationSelf($id, $esignMethod)
+    protected function doSendNotificationSelf($id, $documentSignatureEsignData)
     {
         $sendToNotification = [
             'title' => 'TTE Berhasil',
@@ -365,7 +365,7 @@ trait SignDocumentSignatureTrait
             'status' => SignatureStatusTypeEnum::SIGNED()
         ];
 
-        $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);
+        $this->doSendNotificationDocumentSignature($sendToNotification, $documentSignatureEsignData['esignMethod'], $documentSignatureEsignData['fcmToken']);
     }
 
     /**

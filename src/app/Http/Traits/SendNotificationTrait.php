@@ -50,11 +50,14 @@ trait SendNotificationTrait
      * setupDocumentSignatureSentNotification
      *
      * @param  mixed $request
+     * @param  string $fcmToken
      * @return boolean
      */
-    public function setupDocumentSignatureSentNotification($request)
+    public function setupDocumentSignatureSentNotification($request, $fcmToken = null)
     {
         list($data, $token) = $this->setDocumentSignatureSentTarget($request);
+
+        $token = ($fcmToken != null) ? $fcmToken : $token;
 
         if (!$data) {
             return false;
@@ -66,6 +69,7 @@ trait SendNotificationTrait
             $data,
             FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL()
         );
+
         $send = $this->sendNotification($messageAttribute);
 
         return true;

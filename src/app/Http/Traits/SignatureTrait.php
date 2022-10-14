@@ -285,9 +285,10 @@ trait SignatureTrait
      *
      * @param  array $sendToNotification
      * @param  enum $esignMethod
+     * @param  string $fcmToken
      * @return mixed
      */
-    public function doSendNotificationDocumentSignature($sendToNotification, $esignMethod)
+    public function doSendNotificationDocumentSignature($sendToNotification, $esignMethod, $fcmToken = null)
     {
         $messageAttribute = [
             'notification' => [
@@ -307,7 +308,7 @@ trait SignatureTrait
             $messageAttribute['data']['visible'] = false;
         }
 
-        $this->setupDocumentSignatureSentNotification($messageAttribute);
+        $this->setupDocumentSignatureSentNotification($messageAttribute, $fcmToken);
     }
 
     /**
