@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class DocumentSignatureFileController extends Controller
 {
     /**
-     * Handle the incoming request.
+     * Signatured document file
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  String $type
