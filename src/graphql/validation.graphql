@@ -1,6 +1,7 @@
 type ValidationDocument {
     inboxFile: InboxFile
-    documentSignature: DocumentSignature
+    documentSignature: DocumentSignature,
+    hasMeterai: Boolean
 }
 
 type Validation {
