@@ -11,6 +11,7 @@ use App\Http\Controllers\V1\DocumentSignatureFileController;
 use App\Http\Controllers\V1\DocumentTypeController;
 use App\Http\Controllers\V1\EsignDocumentCheckStatusController;
 use App\Http\Controllers\V1\EsignDocumentTypeController;
+use App\Http\Controllers\V1\EsignDocumentUploadController;
 use App\Http\Controllers\V1\EsignSignerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +49,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/documents/types', [EsignDocumentTypeController::class, '__invoke']);
         Route::get('/documents/{id}/file', [DocumentSignatureFileController::class, '__invoke']);
         Route::get('/documents', [EsignDocumentCheckStatusController::class, '__invoke']);
+        Route::post('/documents', [EsignDocumentUploadController::class, '__invoke']);
         Route::get('/signers', [EsignSignerController::class, '__invoke']);
     });
 });
