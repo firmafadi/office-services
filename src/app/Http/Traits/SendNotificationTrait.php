@@ -57,7 +57,7 @@ trait SendNotificationTrait
     {
         list($data, $token) = $this->setDocumentSignatureSentTarget($request);
 
-        $token = ($fcmToken != null) ? $fcmToken : $token;
+        $token = ($fcmToken != null) ? [$fcmToken] : $token;
 
         if (!$data) {
             return false;
