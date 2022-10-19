@@ -4,8 +4,6 @@ use Carbon\Carbon;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 
-JWT::$leeway = 60;
-
 function setDateTimeNowValue()
 {
     return Carbon::now()->setTimezone(config('sikd.timezone_server'));
@@ -34,6 +32,8 @@ function allowedIssuers()
 function parseJWTToken($token)
 {
     try {
+        JWT::$leeway = config('jwt.leeway');
+
         $jwks_response = file_get_contents(config('keycloak.base_url') . '/auth/realms/' . config('keycloak.realm') . '/protocol/openid-connect/certs');
         $jwks = json_decode($jwks_response, true);
 
