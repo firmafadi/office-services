@@ -506,7 +506,6 @@ class DraftSignatureMutator
             $InboxReceiverCorrection->action_label  = ActionLabelTypeEnum::REVIEW();
             $InboxReceiverCorrection->save();
         }
-        return $InboxReceiverCorrection;
     }
 
     /**
