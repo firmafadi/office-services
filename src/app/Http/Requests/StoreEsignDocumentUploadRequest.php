@@ -26,7 +26,7 @@ class StoreEsignDocumentUploadRequest extends FormRequest
         return [
             'document_esign_type_id' => 'exists:sikdweb.m_ttd_types,id',
             'file' => 'required|mimes:pdf|max:15000',
-            'attachment' => 'required|mimes:pdf|max:15000',
+            'attachment' => 'mimes:pdf|max:15000',
             'note' => 'nullable',
             'nip' => 'required|array',
             'nip.*' => 'exists:sikdweb.people,NIP'

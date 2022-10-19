@@ -49,7 +49,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/documents/types', [EsignDocumentTypeController::class, '__invoke']);
         Route::get('/documents/{id}/file', [DocumentSignatureFileController::class, '__invoke']);
         Route::get('/documents', [EsignDocumentCheckStatusController::class, '__invoke']);
-        Route::post('/documents', [EsignDocumentUploadController::class, '__invoke']);
+        Route::post('/documents', [EsignDocumentUploadController::class, 'upload']);
         Route::get('/signers', [EsignSignerController::class, '__invoke']);
     });
 });
