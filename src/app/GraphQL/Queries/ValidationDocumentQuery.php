@@ -49,17 +49,15 @@ class ValidationDocumentQuery
                             ->first();
 
         $documentSignature  = null;
-        $hasMeterai         = false;
         if (!$inboxFile) {
             $documentSignature = DocumentSignature::where('file', $latestSlug)->first();
-            $hasMeterai = $documentSignature->has_meterai;
         }
 
         if ($documentSignature != null || $inboxFile != null) {
             $data = collect([
                 'documentSignature' => $documentSignature,
                 'inboxFile' => $inboxFile,
-                'hasMeterai' => $hasMeterai
+                'hasMeterai' => ($documentSignature != null) ? $documentSignature->has_meterai : false
             ]);
 
             return $data;
@@ -83,16 +81,14 @@ class ValidationDocumentQuery
         $inboxFile = InboxFile::where('id_dokumen', $code)->first();
 
         $documentSignature  = null;
-        $hasMeterai         = false;
         if (!$inboxFile) {
             $documentSignature = DocumentSignature::where('code', $code)->first();
-            $hasMeterai = $documentSignature->has_meterai;
         }
 
         $data = collect([
             'documentSignature' => $documentSignature,
             'inboxFile' => $inboxFile,
-            'hasMeterai' => $hasMeterai
+            'hasMeterai' => ($documentSignature != null) ? $documentSignature->has_meterai : false
         ]);
 
         return $data;
