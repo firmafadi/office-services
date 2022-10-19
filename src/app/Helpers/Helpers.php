@@ -26,6 +26,11 @@ function parseSetLocaleDate($value, $locale, $format)
     return Carbon::parse($value)->locale($locale)->translatedFormat($format);
 }
 
+function allowedIssuers()
+{
+    return array(config('keycloak.iss'));
+}
+
 function parseJWTToken($token)
 {
     try {
@@ -34,12 +39,8 @@ function parseJWTToken($token)
 
         $result = JWT::decode($token, JWK::parseKeySet($jwks));
 
-        if (config('keycloak.iss') !== $result->iss) {
+        if (!in_array($result->iss, allowedIssuers())) {
             throw new Exception("Unknown Issuer " . $result->iss);
-        }
-
-        if (config('keycloak.aud') !== $result->aud) {
-            throw new Exception("Unknown Audience " . $result->aud);
         }
 
         return $result;

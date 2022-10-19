@@ -8,6 +8,7 @@ return [
 
     'refresh_ttl' => env('JWT_REFRESH_TTL', 20160),
 
-    'algo' => env('JWT_ALGO', 'HS256')
+    'algo' => env('JWT_ALGO', 'HS256'),
 
+    'leeway' => env('JWT_LEEWAY', 60)
 ];
