@@ -8,7 +8,5 @@ return [
 
     'iss' => env('KEYCLOAK_ISS'),
 
-    'aud' => env('KEYCLOAK_AUD'),
-
     'certificate.ttl' => env('KEYCLOAK_CERTIFICATE_TTL', 600)
 ];
