@@ -41,13 +41,15 @@ Route::prefix('v1')->group(function () {
     Route::get('/draft/{id}', [DocumentDraftPdfController::class, '__invoke']);
     Route::get('/users/{idNumber}/haslogged', [LoggedUserCheckController::class, '__invoke']);
     Route::get('/users/{idNumber}/haslogged', [LoggedUserCheckController::class, '__invoke']);
-    Route::get('/units', [DepartmentUnitController::class, '__invoke']);
-    Route::get('/document-types', [DocumentTypeController::class, '__invoke']);
-    Route::get('/document-classified', [DocumentClassifiedController::class, '__invoke']);
-    Route::prefix('esign')->group(function () {
-        Route::get('/documents/types', [EsignDocumentTypeController::class, '__invoke']);
-        Route::get('/documents/{id}/file', [DocumentSignatureFileController::class, '__invoke']);
-        Route::get('/documents', [EsignDocumentCheckStatusController::class, '__invoke']);
-        Route::get('/signers', [EsignSignerController::class, '__invoke']);
+    Route::middleware('valid.token')->group(function () {
+        Route::get('/units', [DepartmentUnitController::class, '__invoke']);
+        Route::get('/document-types', [DocumentTypeController::class, '__invoke']);
+        Route::get('/document-classified', [DocumentClassifiedController::class, '__invoke']);
+        Route::prefix('esign')->group(function () {
+            Route::get('/documents/types', [EsignDocumentTypeController::class, '__invoke']);
+            Route::get('/documents/{id}/file', [DocumentSignatureFileController::class, '__invoke']);
+            Route::get('/documents', [EsignDocumentCheckStatusController::class, '__invoke']);
+            Route::get('/signers', [EsignSignerController::class, '__invoke']);
+        });
     });
 });
