@@ -7,6 +7,4 @@ return [
     'realm' => env('KEYCLOAK_REALM'),
 
     'iss' => env('KEYCLOAK_ISS'),
-
-    'aud' => env('KEYCLOAK_AUD'),
 ];

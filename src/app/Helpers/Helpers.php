@@ -24,22 +24,20 @@ function parseSetLocaleDate($value, $locale, $format)
     return Carbon::parse($value)->locale($locale)->translatedFormat($format);
 }
 
-function allowedIssuers()
-{
-    return array(config('keycloak.iss'));
-}
-
 function parseJWTToken($token)
 {
     try {
         JWT::$leeway = config('jwt.leeway');
 
-        $jwks_response = file_get_contents(config('keycloak.base_url') . '/auth/realms/' . config('keycloak.realm') . '/protocol/openid-connect/certs');
-        $jwks = json_decode($jwks_response, true);
+        $allowedIssuers = array(config('keycloak.iss'));
+        $getKeycloakCertificateUrl = config('keycloak.base_url') . '/auth/realms/' . config('keycloak.realm') . '/protocol/openid-connect/certs';
+
+        $jwksResponse = file_get_contents($getKeycloakCertificateUrl);
+        $jwks = json_decode($jwksResponse, true);
 
         $result = JWT::decode($token, JWK::parseKeySet($jwks));
 
-        if (!in_array($result->iss, allowedIssuers())) {
+        if (!in_array($result->iss, $allowedIssuers)) {
             throw new Exception("Unknown Issuer " . $result->iss);
         }
 
