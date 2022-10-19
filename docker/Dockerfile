@@ -43,10 +43,6 @@ RUN apk --no-cache add \
     librdkafka-dev \
     php8-pecl-rdkafka
 
-# Configure docker-entrypoint
-# COPY docker-config/docker-entrypoint.sh /usr/local/bin/start
-# RUN chmod +x /usr/local/bin/start
-
 # Install new relic
 RUN curl -L "https://download.newrelic.com/php_agent/archive/9.21.0.311/newrelic-php5-9.21.0.311-linux-musl.tar.gz" | tar -C /tmp -zx \
  && export NR_INSTALL_SILENT=1 \
@@ -86,6 +82,10 @@ WORKDIR /var/www/html
 # Copy App to Workdir
 COPY --chown=nobody src/ /var/www/html/
 
+# Configure docker-entrypoint
+COPY --chown=nobody docker/docker-entrypoint.sh /var/www/html/docker/
+RUN chmod +x /var/www/html/docker/docker-entrypoint.sh
+
 # Install composer from the official image
 COPY --from=registry.digitalservice.id/proxyjds/library/composer:2.0.9 /usr/bin/composer /usr/bin/composer
 
@@ -100,4 +100,4 @@ ENV DOCKER_APP $DOCKER_APP
 EXPOSE 8080
 
 # Let supervisord start nginx & php-fpm
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT [ "docker/docker-entrypoint.sh" ]

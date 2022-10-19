@@ -18,4 +18,5 @@ return [
     'timezone_server' => env('SIKD_TIMEZONE_SERVER'),
     'add_footer_url' => env('JABAR_SERVICE_PDF_URL') . '/api/add-footer-pdf',
     'mysql_user_log_activity' => env('MYSQL_USER_LOG_ACTIVITY', false),
+    'maximum_multiple_esign' => env('MAXIMUM_MULTIPLE_ESIGN', 10)
 ];

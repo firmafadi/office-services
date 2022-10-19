@@ -67,7 +67,7 @@ type Query {
 
     # You can use this @field code for experiment query leveling -> @field(resolver: "DocumentSignatureQuery@list")
     documentSignatureSents(
-        orderBy: _ @orderBy(columns: ["tgl"])
+        orderBy: _ @orderBy(relations: [{ relation: "documentSignature", columns: ["last_activity"] }])
         search: String @builder(method: "App\\Models\\DocumentSignatureSent@search")
         filter: documentSignatureSentsInput @builder(method: "App\\Models\\DocumentSignatureSent@filter")
     ): [DocumentSignatureSent!]!
@@ -181,6 +181,11 @@ type Query {
         @orderBy(column: "SIfatName", direction: ASC)
         @all
         @guard
+
+    departmentList: [Rolecode!]!
+        @orderBy(column: "rolecode_id", direction: ASC)
+        @paginate(type: CONNECTION)
+        @guard
 }
 
 type Mutation {
@@ -197,6 +202,10 @@ type Mutation {
 
     documentSignature(input: DocumentSignatureInput): DocumentSignatureSent
         @field(resolver: "DocumentSignatureMutator@signature")
+        @guard
+
+    documentSignatureMultiple(input: DocumentSignatureMultipleInput): [DocumentSignatureSent]
+        @field(resolver: "DocumentSignatureMultipleMutator@signature")
         @guard
 
     draftSignature(input: DraftSignatureInput): Draft
@@ -222,6 +231,10 @@ type Mutation {
     distributeInbox(input: DistributeInboxInput): Inbox!
         @field(resolver: "DistributeInboxMutator@distributeInbox")
         @guard
+    
+    modifyInboxStatusRead(id: String!): InboxReceiver!
+        @field(resolver: "InboxMutator@modfyStatusRead")
+        @guard
 }
 
 #import auth.graphql
@@ -238,3 +251,4 @@ type Mutation {
 #import inboxReceiverCorrection.graphql
 #import masterCorrectionOption.graphql
 #import validation.graphql
+#import roleCode.graphql

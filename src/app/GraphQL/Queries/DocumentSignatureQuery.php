@@ -2,9 +2,11 @@
 
 namespace App\GraphQL\Queries;
 
+use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\ObjectiveTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
+use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 use App\Models\DocumentSignatureSentRead;
@@ -13,6 +15,8 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class DocumentSignatureQuery
 {
+    use KafkaTrait;
+
     /**
      * @param $rootValue
      * @param array                                                    $args
@@ -64,12 +68,9 @@ class DocumentSignatureQuery
     public function detail($rootValue, array $args, GraphQLContext $context)
     {
         $documentSignatureSent = DocumentSignatureSent::where('id', $args['id'])->first();
-
+        $this->readLog($args['id']);
         if (!$documentSignatureSent) {
-            throw new CustomException(
-                'Document not found',
-                'Document with this id not found'
-            );
+            throw new CustomException('Document not found', 'Document with this id not found');
         }
 
         //Check the inbox is readed or not
@@ -107,32 +108,15 @@ class DocumentSignatureQuery
      */
     public function timelines($rootValue, array $args, GraphQLContext $context)
     {
-        $documentSignatureIds = explode(", ", $args['filter']['documentSignatureIds']);
+        $documentSignatureIds   = explode(", ", $args['filter']['documentSignatureIds']);
+        $sorts                  = explode(", ", $args['filter']['sorts']);
+        $status                 = $args['filter']['status'] ?? null;
+
+        $argsGroup = array_combine($documentSignatureIds, $sorts);
 
         $items = [];
-        foreach ($documentSignatureIds as $documentSignatureId) {
-            $sort = $args['filter']['sort'] ?? null;
-            $status = $args['filter']['status'] ?? null;
-
-            $documentSignature = DocumentSignatureSent::where('ttd_id', $documentSignatureId)
-                                                        ->where('urutan', '<', $sort);
-
-            if ($status) {
-                if ($status == SignatureStatusTypeEnum::SIGNED()) {
-                    $documentSignature->where('status', SignatureStatusTypeEnum::SUCCESS()->value);
-                }
-                if ($status == SignatureStatusTypeEnum::UNSIGNED()) {
-                    $documentSignature->whereIn(
-                        'status',
-                        [
-                            SignatureStatusTypeEnum::WAITING()->value,
-                            SignatureStatusTypeEnum::REJECT()->value
-                        ]
-                    );
-                }
-            }
-
-            $documentSignature = $documentSignature->orderBy('urutan', 'DESC')->get();
+        foreach ($argsGroup as $documentSignatureId => $sort) {
+            $documentSignature = $this->doQueryTimelines($documentSignatureId, $sort, $status);
 
             array_push($items, [
                 'documentSignatuerSents' => $documentSignature
@@ -140,5 +124,56 @@ class DocumentSignatureQuery
         }
 
         return $items;
+    }
+
+    /**
+     * doQueryTimelines
+     *
+     * @param  integer $documentSignatureId
+     * @param  integer $sort
+     * @param  enum $status
+     * @return collection
+     */
+    protected function doQueryTimelines($documentSignatureId, $sort, $status)
+    {
+        $documentSignature = DocumentSignatureSent::where('ttd_id', $documentSignatureId)
+                                                        ->where('urutan', '<', $sort);
+
+        if ($status) {
+            if ($status == SignatureStatusTypeEnum::SIGNED()) {
+                $documentSignature->where('status', SignatureStatusTypeEnum::SUCCESS()->value);
+            }
+            if ($status == SignatureStatusTypeEnum::UNSIGNED()) {
+                $documentSignature->whereIn(
+                    'status',
+                    [
+                        SignatureStatusTypeEnum::WAITING()->value,
+                        SignatureStatusTypeEnum::REJECT()->value
+                    ]
+                );
+            }
+        }
+
+        $documentSignature = $documentSignature->orderBy('urutan', 'DESC')->get();
+
+        return $documentSignature;
+    }
+
+    /**
+     * Add logging
+     *
+     * @param  integer $letterId
+     * @return Void
+     */
+    protected function readLog($letterId)
+    {
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'read_letter',
+            'status' => KafkaStatusTypeEnum::SUCCESS(),
+            'origin' => 'document_signature',
+            'letter' => [
+                'inbox_id' => $letterId
+            ]
+        ]);
     }
 }

@@ -48,7 +48,7 @@ class ValidationDocumentQuery
                             ->orWhere('FileName_fake', $latestSlug)
                             ->first();
 
-        $documentSignature = null;
+        $documentSignature  = null;
         if (!$inboxFile) {
             $documentSignature = DocumentSignature::where('file', $latestSlug)->first();
         }
@@ -56,7 +56,8 @@ class ValidationDocumentQuery
         if ($documentSignature != null || $inboxFile != null) {
             $data = collect([
                 'documentSignature' => $documentSignature,
-                'inboxFile' => $inboxFile
+                'inboxFile' => $inboxFile,
+                'hasMeterai' => ($documentSignature != null) ? $documentSignature->has_meterai : false
             ]);
 
             return $data;
@@ -78,15 +79,16 @@ class ValidationDocumentQuery
     private function getValidationByCode($code)
     {
         $inboxFile = InboxFile::where('id_dokumen', $code)->first();
-        $documentSignature = null;
 
+        $documentSignature  = null;
         if (!$inboxFile) {
             $documentSignature = DocumentSignature::where('code', $code)->first();
         }
 
         $data = collect([
             'documentSignature' => $documentSignature,
-            'inboxFile' => $inboxFile
+            'inboxFile' => $inboxFile,
+            'hasMeterai' => ($documentSignature != null) ? $documentSignature->has_meterai : false
         ]);
 
         return $data;

@@ -12,6 +12,7 @@ use App\Enums\KafkaStatusTypeEnum;
 use App\Enums\PeopleGroupTypeEnum;
 use App\Enums\PeopleIsActiveEnum;
 use App\Enums\SignatureDocumentTypeEnum;
+use App\Enums\SignatureMethodTypeEnum;
 use App\Exceptions\CustomException;
 use App\Http\Traits\DraftTrait;
 use App\Http\Traits\KafkaTrait;
@@ -28,6 +29,7 @@ use App\Models\TableSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -53,21 +55,26 @@ class DraftSignatureMutator
             throw new CustomException('Dokumen telah ditandatangan', 'Dokumen ini telah ditandatangani oleh Anda');
         }
 
+        $draft       = Draft::where('NId_temp', $draftId)->first();
         $setupConfig = $this->setupConfigSignature();
-        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
+        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT()));
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
-            $draft     = Draft::where('NId_temp', $draftId)->first();
             $signature = $this->doSignature($setupConfig, $draft, $passphrase);
 
             $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
             $draft->save();
 
-            $logData['status'] = KafkaStatusTypeEnum::SUCCESS();
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', [
+                'event' => 'esign_sign_draft',
+                'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+                'letter' => [
+                    'id' => $draftId
+                ]
+            ]);
 
             return $signature;
         } else {
-            $this->invalidResponseCheckUserSignature($checkUserResponse);
+            $this->invalidResponseCheckUserSignature($checkUserResponse, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
         }
     }
 
@@ -103,16 +110,15 @@ class DraftSignatureMutator
 
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
-            $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
+            $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
             throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
         } else {
             //Save new file & update status
             $draft = $this->saveNewFile($response, $draft, $verifyCode);
+            //Save log
+            $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
+            return $draft;
         }
-        //Save log
-        $this->createPassphraseSessionLog($response, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT(), $draft);
-
-        return $draft;
     }
 
     /**
@@ -137,7 +143,17 @@ class DraftSignatureMutator
 
             return $addFooter;
         } catch (\Throwable $th) {
-            throw new CustomException('Gagal menambahkan QRCode dan text footer', $th);
+            $logData = [
+                'event' => 'esign_FOOTER_DRAFT_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_FOOTER_FAILED_UNKNOWN(),
+                'esign_source_file' => $draft->draft_file . '?esign=true',
+                'esign_response' => $th,
+                'message' => 'Gagal menambahkan QRCode dan text footer',
+                'longMessage' => 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali'
+            ];
+
+            $this->kafkaPublish('analytic_event', $logData);
+            throw new CustomException($logData['message'], $logData['longMessage']);
         }
     }
 
@@ -198,6 +214,36 @@ class DraftSignatureMutator
      */
     protected function doSaveSignature($draft, $verifyCode)
     {
+        DB::beginTransaction();
+        try {
+            $signature = $this->updateDataDraftAfterEsign($draft, $verifyCode);
+
+            DB::commit();
+            return $signature;
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            $logData = [
+                'event' => 'esign_update_status_draft_pdf',
+                'status' => KafkaStatusTypeEnum::ESIGN_INVALID_UPDATE_STATUS_AND_DATA(),
+                'esign_source_file' => $draft->document_file_name,
+                'response' => $th,
+                'message' => 'Gagal menyimpan perubahan data',
+                'longMessage' => $th->getMessage()
+            ];
+            // Set return failure esign
+            throw new CustomException($logData['message'], $logData['longMessage']);
+        }
+    }
+
+    /**
+     * updateDataDraftAfterEsign
+     *
+     * @param  mixed $draft
+     * @param  mixed $verifyCode
+     * @return void
+     */
+    protected function updateDataDraftAfterEsign($draft, $verifyCode)
+    {
         $signature = new Signature();
         $signature->NId    = $draft->NId_Temp;
         $signature->TglProses   = Carbon::now();
@@ -218,6 +264,7 @@ class DraftSignatureMutator
         if (!in_array($draft->Ket, array_keys($draftReceiverAsToTarget))) {
             $this->forwardSaveInboxReceiverCorrection($draft, $draftReceiverAsToTarget);
         }
+
         return $signature;
     }
 
@@ -460,7 +507,6 @@ class DraftSignatureMutator
             $InboxReceiverCorrection->action_label  = ActionLabelTypeEnum::REVIEW();
             $InboxReceiverCorrection->save();
         }
-        return $InboxReceiverCorrection;
     }
 
     /**

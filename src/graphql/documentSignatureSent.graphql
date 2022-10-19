@@ -19,7 +19,7 @@ type DocumentSignatureSent {
     receiverRead: Boolean @rename(attribute: "is_receiver_read")
     isLastSigned: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isLastSigned")
     parent: DocumentSignatureSent @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@parent")
-    documentSignature: DocumentSignature @belongsTo
+    documentSignature: DocumentSignature @with(relation: "documentSignature")
 }
 
 type DocumentSignatureSentTimelines {
@@ -60,7 +60,7 @@ input documentSignatureSentTimelineInput {
 
 input documentSignatureSentTimelinesInput {
     documentSignatureIds: String!
-    sort: String!
+    sorts: String!
     status: StatusType
 }
 
