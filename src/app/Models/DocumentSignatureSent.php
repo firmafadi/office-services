@@ -202,4 +202,9 @@ class DocumentSignatureSent extends Model
             );
         }
     }
+
+    public function SetTglAttribute($value)
+    {
+        $this->attributes['tgl'] = $value->copy()->addHours(7);
+    }
 }

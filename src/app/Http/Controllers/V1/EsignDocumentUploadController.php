@@ -4,6 +4,9 @@ namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEsignDocumentUploadRequest;
+use App\Http\Resources\TicketDocumentUploadResource;
+use App\Jobs\ProcessStoreEsignDocumentUpload;
+use App\Models\TicketDocumentUpload;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -41,14 +44,29 @@ class EsignDocumentUploadController extends Controller
             $documentAttachment = json_decode($transferDocumentAttachmentFile->getBody()->getContents());
         }
 
+        $createTicket = new TicketDocumentUpload();
+        $createTicket->ticket_number = uniqid();
+        $createTicket->save();
+
         $storeDocumentData = [
-            'data'       => $request->except(['file', 'attachment']),
+            'id'         => $createTicket->id,
+            'request'    => $request,
             'file'       => $documentFile->data->file,
             'draft'      => $documentFile->data->draft,
             'attachment' => ($documentAttachment != null) ? $documentAttachment->data->attachment : null,
         ];
+
+        ProcessStoreEsignDocumentUpload::dispatch($storeDocumentData);
+
+        return new TicketDocumentUploadResource($createTicket);
     }
 
+    /**
+     * setDocumentFileUpload
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return object
+     */
     protected function setDocumentFileUpload($request)
     {
         $fileName = $request->file('file')->getClientOriginalName();
@@ -63,6 +81,12 @@ class EsignDocumentUploadController extends Controller
         return $response;
     }
 
+    /**
+     * setDocumentFileAttachmentUpload
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return object
+     */
     protected function setDocumentFileAttachmentUpload($request)
     {
         $fileNameAttachment = $request->file('attachment')->getClientOriginalName();
@@ -76,6 +100,15 @@ class EsignDocumentUploadController extends Controller
         return $response;
     }
 
+    /**
+     * doTransferFile
+     *
+     * @param  string $type
+     * @param  mixed $fileUpload
+     * @param  string $fileName
+     * @param  array $bodyRequest
+     * @return object
+     */
     protected function doTransferFile($type, $fileUpload, $fileName, $bodyRequest = null)
     {
         try {

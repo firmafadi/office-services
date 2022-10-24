@@ -139,4 +139,9 @@ class DocumentSignature extends Model
 
         return $pdfName;
     }
+
+    public function SetTanggalAttribute($value)
+    {
+        $this->attributes['tanggal'] = $value->copy()->addHours(7);
+    }
 }
