@@ -167,28 +167,20 @@ class DraftSignatureMutator
      */
     protected function saveNewFile($pdf, $draft, $verifyCode)
     {
-        //save signed data
+        ///save signed data
         Storage::disk('local')->put($draft->document_file_name, $pdf->body());
 
         $response = $this->doTransferFile($draft);
         if ($response->status() != Response::HTTP_OK) {
-            $logData = [
-                'event' => 'esign_transfer_pdf',
-                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
-                'esign_source_file' => $draft->document_file_name,
-                'esign_response' => $response,
-                'message' => 'Gagal melakukan transfer file eSign',
-                'longMessage' => 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali'
-            ];
-
+            $logData = $this->logInvalidTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $response);
             $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException($logData['message'], $logData['longMessage']);
+        } else {
+            $this->doSaveSignature($draft, $verifyCode);
+            //remove temp data
+            Storage::disk('local')->delete($draft->document_file_name);
+            return $draft;
         }
-        $this->doSaveSignature($draft, $verifyCode);
-        //remove temp data
-        Storage::disk('local')->delete($draft->document_file_name);
-
-        return $draft;
     }
 
     /**
@@ -207,14 +199,8 @@ class DraftSignatureMutator
 
             return $response;
         } catch (\Throwable $th) {
-            $logData = [
-                'event' => 'esign_transfer_draft_pdf',
-                'status' => KafkaStatusTypeEnum::ESIGN_TRANSFER_FAILED_FROM_MOBILE(),
-                'esign_source_file' => $draft->document_file_name,
-                'esign_response' => $th,
-                'message' => 'Gagal terhubung untuk transfer file eSign',
-                'longMessage' => 'Gagal terhubung untuk memindahkan file tertandatangani ke webhook, silahkan coba kembali'
-            ];
+            $logData = $this->logInvalidConnectTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $th);
+            $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException($logData['message'], $logData['longMessage']);
         }
     }
@@ -521,7 +507,6 @@ class DraftSignatureMutator
             $InboxReceiverCorrection->action_label  = ActionLabelTypeEnum::REVIEW();
             $InboxReceiverCorrection->save();
         }
-        return $InboxReceiverCorrection;
     }
 
     /**

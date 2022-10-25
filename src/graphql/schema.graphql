@@ -67,7 +67,7 @@ type Query {
 
     # You can use this @field code for experiment query leveling -> @field(resolver: "DocumentSignatureQuery@list")
     documentSignatureSents(
-        orderBy: _ @orderBy(columns: ["tgl"])
+        orderBy: _ @orderBy(relations: [{ relation: "documentSignature", columns: ["last_activity"] }])
         search: String @builder(method: "App\\Models\\DocumentSignatureSent@search")
         filter: documentSignatureSentsInput @builder(method: "App\\Models\\DocumentSignatureSent@filter")
     ): [DocumentSignatureSent!]!
@@ -89,6 +89,12 @@ type Query {
         objective: ObjectiveType
     ): DocumentSignatureSent!
         @field(resolver: "DocumentSignatureQuery@detail")
+        @guard
+
+    documentSignatureSentMultiple(
+        documentSignatureSentIds: String!
+    ): [DocumentSignatureSent!]!
+        @field(resolver: "DocumentSignatureQuery@detailMultiple")
         @guard
 
     documentSignatureSentTimelines(
@@ -231,7 +237,7 @@ type Mutation {
     distributeInbox(input: DistributeInboxInput): Inbox!
         @field(resolver: "DistributeInboxMutator@distributeInbox")
         @guard
-    
+
     modifyInboxStatusRead(id: String!): InboxReceiver!
         @field(resolver: "InboxMutator@modfyStatusRead")
         @guard

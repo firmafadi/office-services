@@ -114,8 +114,6 @@ trait SignActionDocumentSignatureTrait
         $data->is_receiver_read = true;
         if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
             $data->progress_queue = SignatureQueueTypeEnum::DONE();
-            //send notification success to user do esign
-            $this->doSendNotificationSelf($data->id, $esignMethod);
         }
         $data->save();
 
