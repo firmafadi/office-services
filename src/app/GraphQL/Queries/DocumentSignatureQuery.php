@@ -106,6 +106,27 @@ class DocumentSignatureQuery
      *
      * @return array
      */
+    public function detailMultiple($rootValue, array $args, GraphQLContext $context)
+    {
+        $documentSignatureIds  = explode(", ", $args['documentSignatureSentIds']);
+        $documentSignatureSent = DocumentSignatureSent::whereIn('id', $documentSignatureIds)->get();
+
+        if (!$documentSignatureSent) {
+            throw new CustomException('Document not found', 'Document with this ids not found');
+        }
+
+        return $documentSignatureSent;
+    }
+
+    /**
+     * @param $rootValue
+     * @param array                                                    $args
+     * @param \Nuwave\Lighthouse\Support\Contracts\GraphQLContext|null $context
+     *
+     * @throws \Exception
+     *
+     * @return array
+     */
     public function timelines($rootValue, array $args, GraphQLContext $context)
     {
         $documentSignatureIds   = explode(", ", $args['filter']['documentSignatureIds']);
