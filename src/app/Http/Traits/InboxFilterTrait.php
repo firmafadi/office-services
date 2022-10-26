@@ -334,11 +334,13 @@ trait InboxFilterTrait
         $deptsIds = $filter['senderDepts'] ?? null;
         if ($deptsIds) {
             $arrayIds = explode(", ", $deptsIds);
-            $query->whereIn('From_Id', fn($query) => $query->select('PeopleId')
-                ->from('people')
-                ->whereIn('PrimaryRoleId', fn($query) => $query->select('RoleId')
-                    ->from('role')
-                    ->whereIn('RoleCode', $arrayIds)));
+            $query->whereIn('NId', fn($query) => $query->select('NId')
+                ->from('inbox')
+                ->whereIn('createdBy', fn($query) => $query->select('PeopleId')
+                    ->from('people')
+                    ->whereIn('PrimaryRoleId', fn($query) => $query->select('RoleId')
+                        ->from('role')
+                        ->whereIn('RoleCode', $arrayIds))));
         }
     }
 

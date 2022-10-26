@@ -167,7 +167,7 @@ class DraftSignatureMutator
      */
     protected function saveNewFile($pdf, $draft, $verifyCode)
     {
-        //save signed data
+        ///save signed data
         Storage::disk('local')->put($draft->document_file_name, $pdf->body());
 
         $response = $this->doTransferFile($draft);
@@ -175,12 +175,12 @@ class DraftSignatureMutator
             $logData = $this->logInvalidTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $response);
             $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException($logData['message'], $logData['longMessage']);
+        } else {
+            $this->doSaveSignature($draft, $verifyCode);
+            //remove temp data
+            Storage::disk('local')->delete($draft->document_file_name);
+            return $draft;
         }
-        $this->doSaveSignature($draft, $verifyCode);
-        //remove temp data
-        Storage::disk('local')->delete($draft->document_file_name);
-
-        return $draft;
     }
 
     /**
@@ -200,6 +200,7 @@ class DraftSignatureMutator
             return $response;
         } catch (\Throwable $th) {
             $logData = $this->logInvalidConnectTransferFile('esign_transfer_draft_pdf', $draft->document_file_name, $th);
+            $this->kafkaPublish('analytic_event', $logData);
             throw new CustomException($logData['message'], $logData['longMessage']);
         }
     }
@@ -506,7 +507,6 @@ class DraftSignatureMutator
             $InboxReceiverCorrection->action_label  = ActionLabelTypeEnum::REVIEW();
             $InboxReceiverCorrection->save();
         }
-        return $InboxReceiverCorrection;
     }
 
     /**

@@ -37,7 +37,8 @@ trait SendNotificationTrait
         }
 
         foreach ($inboxReceiver as $message) {
-            $token = $message->personalAccessTokens->pluck('fcm_token');
+            $lastToken        = $message->personalAccessTokens->pluck('fcm_token')->last();
+            $token            = [$lastToken];
             $messageAttribute = $this->setNotificationAttribute($token, $request, $message, $action);
             $this->sendNotification($messageAttribute);
         }
@@ -49,11 +50,14 @@ trait SendNotificationTrait
      * setupDocumentSignatureSentNotification
      *
      * @param  mixed $request
+     * @param  string $fcmToken
      * @return boolean
      */
-    public function setupDocumentSignatureSentNotification($request)
+    public function setupDocumentSignatureSentNotification($request, $fcmToken = null)
     {
         list($data, $token) = $this->setDocumentSignatureSentTarget($request);
+
+        $token = ($fcmToken != null) ? [$fcmToken] : $token;
 
         if (!$data) {
             return false;
@@ -65,6 +69,7 @@ trait SendNotificationTrait
             $data,
             FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL()
         );
+
         $send = $this->sendNotification($messageAttribute);
 
         return true;
@@ -94,12 +99,14 @@ trait SendNotificationTrait
         }
 
         if ($request['data']['target'] == DocumentSignatureSentNotificationTypeEnum::SENDER()) {
-            $token = $data->senderPersonalAccessTokens->pluck('fcm_token');
+            $lastToken = $data->senderPersonalAccessTokens->pluck('fcm_token')->last();
         }
 
         if ($request['data']['target'] == DocumentSignatureSentNotificationTypeEnum::RECEIVER()) {
-            $token = $data->receiverPersonalAccessTokens->pluck('fcm_token');
+            $lastToken = $data->receiverPersonalAccessTokens->pluck('fcm_token')->last();
         }
+
+        $token = [$lastToken];
 
         return [$data, $token];
     }
