@@ -77,6 +77,7 @@ class People extends Authenticatable
             PeopleProposedTypeEnum::NUMBERING_TU()->value => $this->filterNumberingByTU($query),
             PeopleProposedTypeEnum::DISTRIBUTE()->value => $this->filterDistribute($query),
         };
+        $query->where('PeopleIsActive', true);
     }
 
     /**
@@ -202,7 +203,7 @@ class People extends Authenticatable
      */
     private function dispositionGroup1Query($query, $userPosition, $positionsGroup)
     {
-        if ($userPosition == $positionsGroup[1][0]) {
+        if ($userPosition == $positionsGroup[1][0] || $userPosition == $positionsGroup[2][1]) {
             $query->where(
                 fn($query) => $query
                     ->where('PeoplePosition', 'LIKE', $positionsGroup[3][0] . '%')
@@ -217,6 +218,11 @@ class People extends Authenticatable
                         ->where('RoleCode', DeptRoleCodeTypeEnum::SETDA()->value))
                     ->where('GroupId', PeopleGroupTypeEnum::STRUCTURAL()->value)
             );
+
+            if ($userPosition == $positionsGroup[2][1]) {
+                $query->where('PrimaryRoleId', '!=', PeopleRoleIdTypeEnum::GOVERNOR())
+                    ->where('PrimaryRoleId', '!=', PeopleRoleIdTypeEnum::VICE_GOVERNOR());
+            }
 
             return 'GROUP_1';
         }
@@ -236,7 +242,6 @@ class People extends Authenticatable
         $isPosition = $this->isBelongToGroup($userPosition, $positionsGroup[2]);
         if ($isPosition) {
             $this->dispositionViceGovernorQuery($query, $userPosition, $positionsGroup);
-            $this->dispositionSEKDAQuery($query, $userPosition, $positionsGroup);
             $this->dispositionGroup2LeaderQuery($query, $userPosition, $positionsGroup);
             return 'GROUP_2';
         }
@@ -325,30 +330,6 @@ class People extends Authenticatable
                         ->from('role')
                         ->where('RoleCode', DeptRoleCodeTypeEnum::SETDA()->value))
                     ->where('PrimaryRoleId', '!=', PeopleRoleIdTypeEnum::GOVERNOR())
-                    ->where('GroupId', PeopleGroupTypeEnum::STRUCTURAL()->value)
-            );
-        }
-    }
-
-    /**
-     * Filter people for Positions Group 2 - SEKDA disposition proposed
-     *
-     * @param  Object  $query
-     * @param  String  $userPosition
-     * @param  Array   $positionsGroup
-     *
-     * @return Void
-     */
-    private function dispositionSEKDAQuery($query, $userPosition, $positionsGroup)
-    {
-        if ($userPosition == $positionsGroup[2][1]) {
-            $query->where(
-                fn($query) => $query
-                    ->whereIn('PrimaryRoleId', fn($query) => $query->select('RoleId')
-                        ->from('role')
-                        ->where('RoleCode', DeptRoleCodeTypeEnum::SETDA()->value))
-                    ->where('PrimaryRoleId', '!=', PeopleRoleIdTypeEnum::GOVERNOR())
-                    ->where('PrimaryRoleId', '!=', PeopleRoleIdTypeEnum::VICE_GOVERNOR())
                     ->where('GroupId', PeopleGroupTypeEnum::STRUCTURAL()->value)
             );
         }
