@@ -1,4 +1,4 @@
-name: Release to Staging
+name: Release to Staging GCP
 on:
   push:
     branches:
