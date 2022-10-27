@@ -1,65 +1,65 @@
-name: Release to Staging
-on:
-  push:
-    branches:
-      - development
-  workflow_dispatch:
-jobs:
-  setup-build-publish-deploy:
-    name: Setup, Build, Publish, and Deploy
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@master
+# name: Release to Staging
+# on:
+#   push:
+#     branches:
+#       - development
+#   workflow_dispatch:
+# jobs:
+#   setup-build-publish-deploy:
+#     name: Setup, Build, Publish, and Deploy
+#     runs-on: ubuntu-latest
+#     steps:
+#     - name: Checkout
+#       uses: actions/checkout@master
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+#     - name: Set up QEMU
+#       uses: docker/setup-qemu-action@v1
     
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+#     - name: Set up Docker Buildx
+#       uses: docker/setup-buildx-action@v1
     
-    # Setup gcloud CLI
-    - name: Authenticate to Google Cloud
-      id: auth
-      uses: google-github-actions/auth@v0
-      with:
-        credentials_json: ${{ secrets.GCLOUD_SA_CREDENTIALS }}
+#     # Setup gcloud CLI
+#     - name: Authenticate to Google Cloud
+#       id: auth
+#       uses: google-github-actions/auth@v0
+#       with:
+#         credentials_json: ${{ secrets.GCLOUD_SA_CREDENTIALS }}
 
-    # Install gcloud, `setup-gcloud` automatically picks up authentication from `auth`.
-    - uses: google-github-actions/setup-gcloud@v0
-      name: 'Set up Cloud SDK'
+#     # Install gcloud, `setup-gcloud` automatically picks up authentication from `auth`.
+#     - uses: google-github-actions/setup-gcloud@v0
+#       name: 'Set up Cloud SDK'
       
-    # Configure Docker with Credentials
-    - name: Configure Docker
-      run: |
-        gcloud auth configure-docker asia-southeast2-docker.pkg.dev
+#     # Configure Docker with Credentials
+#     - name: Configure Docker
+#       run: |
+#         gcloud auth configure-docker asia-southeast2-docker.pkg.dev
       
-    # Build the Docker image
-    - name: Set version tag
-      id: vars
-      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+#     # Build the Docker image
+#     - name: Set version tag
+#       id: vars
+#       run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-    - name: Build and push
-      id: docker_build
-      uses: docker/build-push-action@v2
-      with:
-        file: docker/Dockerfile
-        push: true
-        tags: ${{ secrets.DOCKER_IMAGENAME }}:${{ steps.vars.outputs.sha_short }}
+#     - name: Build and push
+#       id: docker_build
+#       uses: docker/build-push-action@v2
+#       with:
+#         file: docker/Dockerfile
+#         push: true
+#         tags: ${{ secrets.DOCKER_IMAGENAME }}:${{ steps.vars.outputs.sha_short }}
 
-    - name: Deploy to staging
-      run: |
-        export DOCKER_IMAGE=${{ secrets.DOCKER_IMAGENAME }}:${{ steps.vars.outputs.sha_short }}
-        for i in $(gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do echo $i; gcloud compute os-login ssh-keys remove --key $i; done
-        gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo yq e -i '.services.mobile_api.image=\"$DOCKER_IMAGE\"' /home/mobile-api/mobile-api-stack.yaml"
-        gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker stack deploy --with-registry-auth -c /home/mobile-api/mobile-api-stack.yaml ${{ secrets.DOCKER_STACK_NAME }}"
+#     - name: Deploy to staging
+#       run: |
+#         export DOCKER_IMAGE=${{ secrets.DOCKER_IMAGENAME }}:${{ steps.vars.outputs.sha_short }}
+#         for i in $(gcloud compute os-login ssh-keys list | grep -v FINGERPRINT); do echo $i; gcloud compute os-login ssh-keys remove --key $i; done
+#         gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo yq e -i '.services.mobile_api.image=\"$DOCKER_IMAGE\"' /home/mobile-api/mobile-api-stack.yaml"
+#         gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker stack deploy --with-registry-auth -c /home/mobile-api/mobile-api-stack.yaml ${{ secrets.DOCKER_STACK_NAME }}"
 
-    - name: Wait for container deployed
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 30s
+#     - name: Wait for container deployed
+#       uses: juliangruber/sleep-action@v1
+#       with:
+#         time: 30s
 
-    - name: Run database migration
-      run: |
-        gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker exec \$(sudo docker container ls  | grep ${{ secrets.DOCKER_STACK_NAME }} | awk '{print \$1}') php artisan migrate --force"
-        gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker exec \$(sudo docker container ls  | grep ${{ secrets.DOCKER_STACK_NAME }} | awk '{print \$1}') php artisan lighthouse:cache"
+#     - name: Run database migration
+#       run: |
+#         gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker exec \$(sudo docker container ls  | grep ${{ secrets.DOCKER_STACK_NAME }} | awk '{print \$1}') php artisan migrate --force"
+#         gcloud compute ssh ${{ secrets.SERVER_SSH_HOST_STAGING }} --zone asia-southeast2-a --command "sudo docker exec \$(sudo docker container ls  | grep ${{ secrets.DOCKER_STACK_NAME }} | awk '{print \$1}') php artisan lighthouse:cache"
