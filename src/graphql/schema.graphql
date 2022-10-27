@@ -91,6 +91,12 @@ type Query {
         @field(resolver: "DocumentSignatureQuery@detail")
         @guard
 
+    documentSignatureSentMultiple(
+        documentSignatureSentIds: String!
+    ): [DocumentSignatureSent!]!
+        @field(resolver: "DocumentSignatureQuery@detailMultiple")
+        @guard
+
     documentSignatureSentTimelines(
         filter: documentSignatureSentTimelinesInput
     ): [DocumentSignatureSentTimelines!]!
@@ -231,7 +237,7 @@ type Mutation {
     distributeInbox(input: DistributeInboxInput): Inbox!
         @field(resolver: "DistributeInboxMutator@distributeInbox")
         @guard
-    
+
     modifyInboxStatusRead(id: String!): InboxReceiver!
         @field(resolver: "InboxMutator@modfyStatusRead")
         @guard
