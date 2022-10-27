@@ -3,7 +3,7 @@ name: Release to Staging Jcloudv2
 on:
   push:
     branches:
-      - infra-dev/sidebar-jcloudv2
+      - development
   workflow_dispatch:
 jobs:
   setup-build-publish-deploy:
