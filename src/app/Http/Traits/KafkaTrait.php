@@ -29,6 +29,11 @@ trait KafkaTrait
 
         $data['medium']     = 'mobile';
         $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
+
+        $header = getallheaders();
+        unset($header['Authorization']);
+        $data['header'] = $header;
+
         if (auth()->check()) {
             $user = auth()->user();
             $data['session_userdata'] = $this->setSessionUserdata($user);
