@@ -23,23 +23,20 @@ class ProcessMultipleEsignDocument implements ShouldQueue
     use SignDocumentSignatureTrait;
 
     protected $documentSignatureSentId;
-    protected $passphrase;
-    protected $userId;
-    protected $fcmToken;
-    protected $header;
+    protected $requestUserData;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($documentSignatureSentId, $passphrase, $userId, $fcmToken, $header)
+    public function __construct($documentSignatureSentId, $requestUserData)
     {
         $this->documentSignatureSentId  = $documentSignatureSentId;
-        $this->passphrase               = $passphrase;
-        $this->userId                   = $userId;
-        $this->fcmToken                 = $fcmToken;
-        $this->header                   = $header;
+        $this->passphrase               = $requestUserData['passphrase'];
+        $this->userId                   = $requestUserData['userId'];
+        $this->fcmToken                 = $requestUserData['fcmToken'];
+        $this->header                   = $requestUserData['header'];
     }
 
     /**
