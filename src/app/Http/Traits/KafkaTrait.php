@@ -36,7 +36,7 @@ trait KafkaTrait
             unset($header['Authorization']);
             $data['header'] = $header;
         } else {
-            $data['header'] = $header
+            $data['header'] = $header;
         }
 
         if (auth()->check()) {
