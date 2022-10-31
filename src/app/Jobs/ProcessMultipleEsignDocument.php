@@ -23,21 +23,20 @@ class ProcessMultipleEsignDocument implements ShouldQueue
     use SignDocumentSignatureTrait;
 
     protected $documentSignatureSentId;
-    protected $passphrase;
-    protected $userId;
-    protected $fcmToken;
+    protected $requestUserData;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($documentSignatureSentId, $passphrase, $userId, $fcmToken)
+    public function __construct($documentSignatureSentId, $requestUserData)
     {
         $this->documentSignatureSentId  = $documentSignatureSentId;
-        $this->passphrase               = $passphrase;
-        $this->userId                   = $userId;
-        $this->fcmToken                 = $fcmToken;
+        $this->passphrase               = $requestUserData['passphrase'];
+        $this->userId                   = $requestUserData['userId'];
+        $this->fcmToken                 = $requestUserData['fcmToken'];
+        $this->header                   = $requestUserData['header'];
     }
 
     /**
@@ -51,6 +50,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
         $fcmToken                 = $this->fcmToken;
         $passphrase               = $this->passphrase;
         $documentSignatureSentId  = $this->documentSignatureSentId;
+        $header                   = $this->header;
 
         DocumentSignatureSent::where('id', $documentSignatureSentId)->update([
             'progress_queue' => SignatureQueueTypeEnum::WAITING()
@@ -59,7 +59,8 @@ class ProcessMultipleEsignDocument implements ShouldQueue
         $documentSignatureEsignData = [
             'userId' => $userId,
             'fcmToken' => $fcmToken,
-            'esignMethod' => SignatureMethodTypeEnum::MULTIFILE()
+            'esignMethod' => SignatureMethodTypeEnum::MULTIFILE(),
+            'header' => $header,
         ];
 
         $this->processSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData);

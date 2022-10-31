@@ -24,11 +24,9 @@ class DocumentSignatureMultipleMutator
      */
     public function signature($rootValue, array $args)
     {
-        $passphrase                     = Arr::get($args, 'input.passphrase');
         $fcmToken                       = Arr::get($args, 'input.fcm_token');
         $fcmToken                       = (isset($fcmToken)) ? $fcmToken : null;
         $splitDocumentSignatureSentIds  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
-        $userId                         = auth()->user()->PeopleId;
 
         if (count($splitDocumentSignatureSentIds) > config('sikd.maximum_multiple_esign')) {
             throw new CustomException(
@@ -47,7 +45,14 @@ class DocumentSignatureMultipleMutator
             );
         }
 
-        $this->doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken);
+        $requestUserData = [
+            'fcmToken'      => $fcmToken,
+            'userId'        => auth()->user()->PeopleId,
+            'passphrase'    => Arr::get($args, 'input.passphrase'),
+            'header'        => getallheaders()
+        ];
+
+        $this->doDocumentSignatureMultiple($documentSignatureSents, $requestUserData);
 
         return $documentSignatureSents;
     }
@@ -74,15 +79,13 @@ class DocumentSignatureMultipleMutator
      * doDocumentSignatureMultiple
      *
      * @param  array $documentSignatureSents
-     * @param  string $passphrase
-     * @param  integer $userId
-     * @param  string $fcmToken
+     * @param  array $requestUserData
      * @return array
      */
-    protected function doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken)
+    protected function doDocumentSignatureMultiple($documentSignatureSents, $requestUserData)
     {
         foreach ($documentSignatureSents as $documentSignatureSent) {
-            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $passphrase, $userId, $fcmToken);
+            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $requestUserData);
         }
 
         return $documentSignatureSents;
