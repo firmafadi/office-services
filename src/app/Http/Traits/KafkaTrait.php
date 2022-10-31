@@ -17,10 +17,11 @@ trait KafkaTrait
      *
      * @param String $topic
      * @param Array $data
+     * @param Array $header
      *
      * @return Void
      */
-    public function kafkaPublish($topic, $data)
+    public function kafkaPublish($topic, $data, $header = null)
     {
         $enabled = config('kafka.enable');
         if (!$enabled) {
@@ -30,9 +31,13 @@ trait KafkaTrait
         $data['medium']     = 'mobile';
         $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
 
-        $header = getallheaders();
-        unset($header['Authorization']);
-        $data['header'] = $header;
+        if ($header == null) {
+            $header = getallheaders();
+            unset($header['Authorization']);
+            $data['header'] = $header;
+        } else {
+            $data['header'] = $header
+        }
 
         if (auth()->check()) {
             $user = auth()->user();

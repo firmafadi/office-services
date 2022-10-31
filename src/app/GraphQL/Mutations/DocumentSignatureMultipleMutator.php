@@ -29,6 +29,7 @@ class DocumentSignatureMultipleMutator
         $fcmToken                       = (isset($fcmToken)) ? $fcmToken : null;
         $splitDocumentSignatureSentIds  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
         $userId                         = auth()->user()->PeopleId;
+        $header                         = getallheaders();
 
         if (count($splitDocumentSignatureSentIds) > config('sikd.maximum_multiple_esign')) {
             throw new CustomException(
@@ -47,7 +48,7 @@ class DocumentSignatureMultipleMutator
             );
         }
 
-        $this->doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken);
+        $this->doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken, $header);
 
         return $documentSignatureSents;
     }
@@ -77,12 +78,13 @@ class DocumentSignatureMultipleMutator
      * @param  string $passphrase
      * @param  integer $userId
      * @param  string $fcmToken
+     * @param  array $header
      * @return array
      */
-    protected function doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken)
+    protected function doDocumentSignatureMultiple($documentSignatureSents, $passphrase, $userId, $fcmToken, $header)
     {
         foreach ($documentSignatureSents as $documentSignatureSent) {
-            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $passphrase, $userId, $fcmToken);
+            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $passphrase, $userId, $fcmToken, $header);
         }
 
         return $documentSignatureSents;
