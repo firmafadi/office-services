@@ -17,6 +17,7 @@ type DocumentSignatureSent {
     statusRead: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@statusRead")
     senderRead: Boolean @rename(attribute: "is_sender_read")
     receiverRead: Boolean @rename(attribute: "is_receiver_read")
+    progressQueue: String @rename(attribute: "progress_queue")
     isLastSigned: Boolean @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@isLastSigned")
     parent: DocumentSignatureSent @field(resolver: "App\\GraphQL\\Types\\DocumentSignatureSentType@parent")
     documentSignature: DocumentSignature @with(relation: "documentSignature")
