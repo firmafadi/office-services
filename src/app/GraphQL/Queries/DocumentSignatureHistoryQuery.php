@@ -27,6 +27,10 @@ class DocumentSignatureHistoryQuery
      */
     public function history($rootValue, array $args, GraphQLContext $context)
     {
+        if (extension_loaded('newrelic')) {
+            newrelic_name_transaction("App\GraphQL\Queries\DocumentSignatureHistoryQuery@history");
+        }
+
         $documentSignatureSent = $this->documentSignatureSent($args);
         $documentSignatureForward = $this->documentSignatureForward($args);
         $documentSignature = DocumentSignature::where('id', $args['documentSignatureId'])->first();

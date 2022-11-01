@@ -28,6 +28,10 @@ class InboxQuery
      */
     public function detail($rootValue, array $args, GraphQLContext $context)
     {
+        if (extension_loaded('newrelic')) {
+            newrelic_name_transaction("App\GraphQL\Queries\InboxQuery@detail");
+        }
+
         $inboxReceiver = InboxReceiver::find($args['id']);
 
         if (!$inboxReceiver) {
