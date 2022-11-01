@@ -360,7 +360,7 @@ trait SignDocumentSignatureTrait
     {
         $sendToNotification = [
             'title' => 'TTE Berhasil',
-            'body' => 'Anda telah berhasil di tandatangani oleh Anda',
+            'body' => 'Dokumen Anda telah berhasil di tandatangani',
             'documentSignatureSentId' => $id,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
             'status' => SignatureStatusTypeEnum::SIGNED()
