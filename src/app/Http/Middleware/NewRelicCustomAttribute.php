@@ -19,6 +19,7 @@ class NewRelicCustomAttribute
         if ($request->user()->check()) {
             if (extension_loaded('newrelic')) {
                 newrelic_add_custom_parameter('session.PeopleId', $request->user()->PeopleId);
+                newrelic_add_custom_parameter('graphql.request_body', $request->getContent());
             }
         }
 
