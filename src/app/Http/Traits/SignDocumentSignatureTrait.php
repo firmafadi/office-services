@@ -32,6 +32,7 @@ trait SignDocumentSignatureTrait
      * @param  mixed $documentSignatureSentId
      * @param  mixed $passphrase
      * @param  array $documentSignatureEsignData
+     * @param  array $header
      * @return void
      */
     protected function processSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData)
@@ -46,19 +47,19 @@ trait SignDocumentSignatureTrait
         $file = $this->fileExist($documentSignatureSent->documentSignature->url);
         if (!$file) {
             $logData = $this->setKafkaDocumentNotFoundSignatureSent();
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $documentSignatureSentId, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
         $checkUserResponse = json_decode($this->checkUserSignature($setupConfig, $documentSignatureSent, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData['esignMethod']));
         if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
             $logData = $this->setKafkaBsreAvailable($checkUserResponse);
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase, $documentSignatureEsignData);
 
             return $signature;
         } else {
-            return $this->invalidResponseCheckUserSignature($checkUserResponse, $documentSignatureSent, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData['esignMethod']);
+            return $this->invalidResponseCheckUserSignature($checkUserResponse, $documentSignatureSent, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
         }
     }
 
@@ -74,7 +75,7 @@ trait SignDocumentSignatureTrait
     protected function doSignature($setupConfig, $data, $passphrase, $documentSignatureEsignData)
     {
         $setNewFileData = $this->setNewFileData($data);
-        $pdfFile = $this->pdfFile($data, $setNewFileData['verifyCode'], $documentSignatureEsignData['esignMethod']);
+        $pdfFile = $this->pdfFile($data, $setNewFileData['verifyCode'], $documentSignatureEsignData);
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . $setupConfig['auth'], 'Cookie' => 'JSESSIONID=' . $setupConfig['cookies'],
         ])->attach('file', $pdfFile, $data->documentSignature->file)->post($setupConfig['url'] . '/api/sign/pdf', [
@@ -122,13 +123,13 @@ trait SignDocumentSignatureTrait
      *
      * @param  mixed $data
      * @param  string $verifyCode
-     * @param  enum $esignMethod
+     * @param  array $documentSignatureEsignData
      * @return mixed
      */
-    protected function pdfFile($data, $verifyCode, $esignMethod)
+    protected function pdfFile($data, $verifyCode, $documentSignatureEsignData)
     {
         if ($data->documentSignature->has_footer == false) {
-            $pdfFile = $this->addFooterDocument($data, $verifyCode, $esignMethod);
+            $pdfFile = $this->addFooterDocument($data, $verifyCode, $documentSignatureEsignData);
         } else {
             $pdfFile = file_get_contents($data->documentSignature->url);
         }
@@ -153,10 +154,10 @@ trait SignDocumentSignatureTrait
      *
      * @param  mixed  $data
      * @param  string $verifyCode
-     * @param  enum $esignMethod
+     * @param  array $documentSignatureEsignData
      * @return mixed
      */
-    protected function addFooterDocument($data, $verifyCode, $esignMethod)
+    protected function addFooterDocument($data, $verifyCode, $documentSignatureEsignData)
     {
         try {
             $addFooter = Http::attach(
@@ -180,9 +181,9 @@ trait SignDocumentSignatureTrait
                 'longMessage' => 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali'
             ];
 
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $esignMethod, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
     }
 
@@ -209,7 +210,7 @@ trait SignDocumentSignatureTrait
 
         if ($response->status() != Response::HTTP_OK) {
             $logData = $this->logInvalidTransferFile('esign_transfer_pdf', $data->documentSignature->url, $response);
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
@@ -300,7 +301,7 @@ trait SignDocumentSignatureTrait
         } catch (\Throwable $th) {
             DB::rollBack();
             $logData = $this->setLogFailedUpdateDataAfterEsign($data, $th);
-            $this->kafkaPublish('analytic_event', $logData);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
 
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
@@ -359,7 +360,7 @@ trait SignDocumentSignatureTrait
     {
         $sendToNotification = [
             'title' => 'TTE Berhasil',
-            'body' => 'Anda telah berhasil di tandatangani oleh Anda',
+            'body' => 'Dokumen Anda telah berhasil di tandatangani',
             'documentSignatureSentId' => $id,
             'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
             'status' => SignatureStatusTypeEnum::SIGNED()

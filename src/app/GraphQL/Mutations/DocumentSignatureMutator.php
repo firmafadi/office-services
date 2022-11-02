@@ -31,7 +31,8 @@ class DocumentSignatureMutator
         $passphrase                 = Arr::get($args, 'input.passphrase');
         $documentSignatureEsignData = [
             'userId' => auth()->user()->PeopleId,
-            'esignMethod' => SignatureMethodTypeEnum::SINGLEFILE()
+            'esignMethod' => SignatureMethodTypeEnum::SINGLEFILE(),
+            'header' => getallheaders(),
         ];
 
         $documentSignatureSent = DocumentSignatureSent::findOrFail($documentSignatureSentId);

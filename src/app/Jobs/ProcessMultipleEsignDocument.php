@@ -23,21 +23,17 @@ class ProcessMultipleEsignDocument implements ShouldQueue
     use SignDocumentSignatureTrait;
 
     protected $documentSignatureSentId;
-    protected $passphrase;
-    protected $userId;
-    protected $fcmToken;
+    protected $requestUserData;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($documentSignatureSentId, $passphrase, $userId, $fcmToken)
+    public function __construct($documentSignatureSentId, $requestUserData)
     {
         $this->documentSignatureSentId  = $documentSignatureSentId;
-        $this->passphrase               = $passphrase;
-        $this->userId                   = $userId;
-        $this->fcmToken                 = $fcmToken;
+        $this->requestUserData          = $requestUserData;
     }
 
     /**
@@ -47,9 +43,10 @@ class ProcessMultipleEsignDocument implements ShouldQueue
      */
     public function handle()
     {
-        $userId                   = $this->userId;
-        $fcmToken                 = $this->fcmToken;
-        $passphrase               = $this->passphrase;
+        $userId                   = $this->requestUserData['userId'];
+        $fcmToken                 = $this->requestUserData['fcmToken'];
+        $passphrase               = $this->requestUserData['passphrase'];
+        $header                   = $this->requestUserData['header'];
         $documentSignatureSentId  = $this->documentSignatureSentId;
 
         DocumentSignatureSent::where('id', $documentSignatureSentId)->update([
@@ -59,7 +56,8 @@ class ProcessMultipleEsignDocument implements ShouldQueue
         $documentSignatureEsignData = [
             'userId' => $userId,
             'fcmToken' => $fcmToken,
-            'esignMethod' => SignatureMethodTypeEnum::MULTIFILE()
+            'esignMethod' => SignatureMethodTypeEnum::MULTIFILE(),
+            'header' => $header,
         ];
 
         $this->processSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData);
