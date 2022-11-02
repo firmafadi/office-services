@@ -17,18 +17,8 @@ trait LogUserActivityTrait
          */
         $doLogging = true;
         if ($request['device'] == 'mobile') {
-            $request['action'] = str_replace('"', '', $request['action']);
-            //identify request['action'] is query / mutation (graphql)
-            $methodTemp  = ltrim($request['action']);
-            $methodTemp  = strtok($methodTemp, " ");
-            $method = (str_contains($methodTemp, 'mutation')) ? 'mutation' : 'query';
-            //identify field in schema
-            $action = explode('{', $request['action']);
-            $action = explode('(', (($methodTemp == '{') ? $action[0] : $action[1]));
-            $action = trim(str_replace('\r\n', '', str_replace('__typename', '', trim($action[0]))));
-            $request['type']    = $method;
-            $request['action']  = $action;
-            if ($action == '__schema') { //handle for playground graphql
+            $request = $this->getActionName($request);
+            if ($request['action'] == '__schema') { //handle for playground graphql
                 $doLogging = false;
             }
         }
@@ -42,5 +32,22 @@ trait LogUserActivityTrait
             return $log;
         }
         return false;
+    }
+
+    public function getActionName($request)
+    {
+        $request['action'] = str_replace('"', '', $request['action']);
+        //identify request['action'] is query / mutation (graphql)
+        $methodTemp  = ltrim($request['action']);
+        $methodTemp  = strtok($methodTemp, " ");
+        $method = (str_contains($methodTemp, 'mutation')) ? 'mutation' : 'query';
+        //identify field in schema
+        $action = explode('{', $request['action']);
+        $action = explode('(', (($methodTemp == '{') ? $action[0] : $action[1]));
+        $action = trim(str_replace('\r\n', '', str_replace('__typename', '', trim($action[0]))));
+        $request['type']    = $method;
+        $request['action']  = $action;
+
+        return $request;
     }
 }

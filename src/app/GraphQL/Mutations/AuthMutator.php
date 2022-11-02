@@ -23,10 +23,6 @@ class AuthMutator
      */
     public function login($rootValue, array $args)
     {
-        if (extension_loaded('newrelic')) {
-            newrelic_name_transaction("App\GraphQL\Mutations\AuthMutator@login");
-        }
-
         /**
          * @var $people People
          */
