@@ -14,11 +14,11 @@ type InboxReceiver {
     isFollowUp: Int @rename(attribute: "TindakLanjut")
     message: String @rename(attribute: "Msg")
     actionLabel: String @rename(attribute: "action_label")
-    inboxDetail: Inbox @belongsTo
-    sender: People @belongsTo
+    inboxDetail: Inbox @with(relation: "inboxDetail")
+    sender: People @with(relation: "sender")
     purpose: [InboxReceiver]
-    receiver: People @belongsTo
-    inboxDisposition: InboxDisposition @belongsTo
+    receiver: People @with(relation: "receiver")
+    inboxDisposition: InboxDisposition @with(relation: "inboxDisposition")
     isEndForward: Boolean @field(resolver: "App\\GraphQL\\Types\\InboxReceiverType@isEndForward")
 }
 
