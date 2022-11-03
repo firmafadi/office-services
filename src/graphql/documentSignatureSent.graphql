@@ -46,6 +46,7 @@ input documentSignatureSentsInput {
     read: Boolean
     withSender: Boolean
     withReceiver: Boolean
+    senderOPD: String
 }
 
 input outboxDocumentSignatureSentsInput {

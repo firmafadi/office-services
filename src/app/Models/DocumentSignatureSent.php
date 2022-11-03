@@ -127,6 +127,7 @@ class DocumentSignatureSent extends Model
         $query->whereIn('id', Arr::collapse([$withReceiverId, $withSenderId]))->where('next', SignatureVisibleTypeEnum::SHOW());
 
         $this->filterByStatus($query, $filter);
+        $this->filterByOPD($query, $filter);
         return $query;
     }
 
@@ -200,6 +201,17 @@ class DocumentSignatureSent extends Model
                 'documentSignature',
                 fn ($query) => $query->whereIn('type_id', $arrayTypes)
             );
+        }
+    }
+
+    private function filterByOPD($query, $filter)
+    {
+        $opdIds = $filter['senderOPD'] ?? null;
+        if ($opdIds) {
+            $arrayIds = explode(", ", $opdIds);
+            $query->leftJoin('people', 'm_ttd_kirim.PeopleID', '=', 'people.PeopleId')
+                ->leftJoin('role', 'people.PrimaryRoleId', '=', 'role.RoleId')
+                ->whereIn('role.roleCode', $arrayIds);
         }
     }
 }
