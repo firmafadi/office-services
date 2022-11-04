@@ -36,6 +36,7 @@ return [
             \Nuwave\Lighthouse\Support\Http\Middleware\AttemptAuthentication::class,
             // Add custom log user activity with middleware
             \App\Http\Middleware\LogUserActivity::class,
+            \App\Http\Middleware\NewRelicCustomAttribute::class,
 
             // Logs every incoming GraphQL query.
             // \Nuwave\Lighthouse\Support\Http\Middleware\LogGraphQLQueries::class,
