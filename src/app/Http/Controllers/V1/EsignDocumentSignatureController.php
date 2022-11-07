@@ -56,7 +56,7 @@ class EsignDocumentSignatureController extends Controller
         try {
             return $this->setupMultiFileEsignDocumentSignature($documentSignatureIds, $passphrase, $fcmToken, $userId);
         } catch (\Throwable $th) {
-            abort(500, $th->getMessage());
+            return response()->json(['error' => $th->getMessage()], 500);
         }
     }
 
