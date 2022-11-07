@@ -21,3 +21,13 @@ function parseSetLocaleDate($value, $locale, $format)
 {
     return Carbon::parse($value)->locale($locale)->translatedFormat($format);
 }
+
+function str_contains_all(array $needles, $word) {
+    foreach ($needles as $needle) {
+        if (strpos($needle, $word) !== false) {
+            return true;
+            break;
+        }
+    }
+    return false;
+}

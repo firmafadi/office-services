@@ -54,6 +54,16 @@ class DocumentSignatureSent extends Model
         return $this->belongsTo(People::class, 'forward_receiver_id', 'PeopleId');
     }
 
+    public function getUseSpecialSenderNameAttribute()
+    {
+        // setup flag for document from special user
+        if (str_contains_all(config('constants.useSpecialSenderName'), $this->previous->PeoplePosition)) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function receiverPersonalAccessTokens()
     {
         return $this->hasMany(PersonalAccessToken::class, 'tokenable_id', 'PeopleIDTujuan');
