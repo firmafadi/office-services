@@ -51,14 +51,10 @@ trait SignatureTrait
      * checkUserSignature
      *
      * @param  array $setupConfig
-     * @param  mixed $data
-     * @param  enum $documentType
-     * @param  enum $esignMethod
      * @return string
      */
-    public function checkUserSignature($setupConfig, $data, $documentType, $esignMethod = null)
+    public function checkUserSignature($setupConfig)
     {
-        $identifyDocument = $this->doIdentifyDocument($documentType, $data);
         $checkUrl = $setupConfig['url'] . '/api/user/status/' . $setupConfig['nik'];
 
         try {
@@ -74,8 +70,7 @@ trait SignatureTrait
                 'longMessage' => $th->getMessage(),
             ];
 
-            // Set return failure esign
-            $this->esignFailedExceptionResponse($logData, $esignMethod, $identifyDocument['id'], $documentType);
+            throw new CustomException($logData['message'], $logData['longMessage']);
         }
     }
 
@@ -87,10 +82,8 @@ trait SignatureTrait
      * @param  enum $esignMethod
      * @return void
      */
-    public function invalidResponseCheckUserSignature($checkUserResponse, $data, $documentType, $documentSignatureEsignData = null)
+    public function invalidResponseCheckUserSignature($checkUserResponse)
     {
-        $identifyDocument = $this->doIdentifyDocument($documentType, $data);
-
         $logData = [
             'message' => 'Invalid BSRE Service',
             'event' => 'esign_check_user_status',
@@ -111,10 +104,10 @@ trait SignatureTrait
             $logData['longMessage'] = 'User NIK sudah terdaftar tapi belum memiliki sertifikat esign yang aktif';
         }
 
-        $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
+        $this->kafkaPublish('analytic_event', $logData);
 
         // Set return failure esign
-        $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $identifyDocument['id'], $documentType);
+        throw new CustomException($logData['message'], $logData['longMessage']);
     }
 
     /**

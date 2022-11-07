@@ -57,8 +57,8 @@ class DraftSignatureMutator
 
         $draft       = Draft::where('NId_temp', $draftId)->first();
         $setupConfig = $this->setupConfigSignature();
-        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT()));
-        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
+        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
+        if (isset($checkUserResponse->status_code) && $checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
             $signature = $this->doSignature($setupConfig, $draft, $passphrase);
 
             $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
@@ -74,7 +74,7 @@ class DraftSignatureMutator
 
             return $signature;
         } else {
-            $this->invalidResponseCheckUserSignature($checkUserResponse, $draft, SignatureMethodTypeEnum::SINGLEFILE(), SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
+            $this->invalidResponseCheckUserSignature($checkUserResponse);
         }
     }
 

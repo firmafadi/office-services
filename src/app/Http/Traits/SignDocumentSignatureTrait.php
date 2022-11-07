@@ -51,16 +51,9 @@ trait SignDocumentSignatureTrait
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $documentSignatureSentId, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
-        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig, $documentSignatureSent, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData['esignMethod']));
-        if ($checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
-            $logData = $this->setKafkaBsreAvailable($checkUserResponse);
-            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
-            $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase, $documentSignatureEsignData);
 
-            return $signature;
-        } else {
-            return $this->invalidResponseCheckUserSignature($checkUserResponse, $documentSignatureSent, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
-        }
+        $signature = $this->doSignature($setupConfig, $documentSignatureSent, $passphrase, $documentSignatureEsignData);
+        return $signature;
     }
 
     /**
