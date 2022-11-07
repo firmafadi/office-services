@@ -62,4 +62,11 @@ return [
         'outboxsupertugas'      => 'to_super_tugas_keluar',
     ],
 
+    'useSpecialSenderName' => [
+        'GUBERNUR JAWA BARAT',
+        'WAKIL GUBERNUR JAWA BARAT',
+        'SEKRETARIS DAERAH PROVINSI JAWA BARAT',
+        'ASISTEN',
+    ],
+
 ];

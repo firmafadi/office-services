@@ -9,6 +9,7 @@ type DocumentSignatureSent {
     sort: String @rename(attribute: "urutan")
     signatureDate: String @rename(attribute: "tgl_ttd")
     next: String
+    useSpecialSenderName: Boolean @rename(attribute: "use_special_sender_name")
     sender: People! @with(relation: "sender")
     receiver: People! @with(relation: "receiver")
     previous: People @with(relation: "previous")
