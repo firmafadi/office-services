@@ -57,7 +57,7 @@ class DocumentSignatureSent extends Model
     public function getUseSpecialSenderNameAttribute()
     {
         // setup flag for document from special user
-        if (str_contains_all(config('constants.useSpecialSenderName'), $this->previous->PeoplePosition)) {
+        if (str_contains_all(config('constants.useSpecialSenderName'), auth()->user()->PeoplePosition)) {
             return true;
         }
 
