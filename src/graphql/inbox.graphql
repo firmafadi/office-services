@@ -18,6 +18,8 @@ type Inbox {
     documentPath: String @rename(attribute: "NFileDir")
     documentFile: InboxFile @belongsTo
     documentUrlPublic: String @rename(attribute: "url_public")
+    deptSenderId: String @rename(attribute: "InstansiPengirimId")
+    deptSenderName: String @rename(attribute: "Instansipengirim")
     attachment: String
 }
 
