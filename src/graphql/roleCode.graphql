@@ -3,3 +3,12 @@ type Rolecode {
     name: String! @rename(attribute: "rolecode_name")
     shortName: String @rename(attribute: "rolecode_sort")
 }
+
+input RolecodeFilterInput {
+    listType: ListTypes
+}
+
+enum ListTypes {
+    INBOX_LIST
+    SIGNATURE_LIST
+}

@@ -188,7 +188,9 @@ type Query {
         @all
         @guard
 
-    departmentList: [Rolecode!]!
+    departmentList(
+        filter: RolecodeFilterInput @builder(method: "App\\Models\\Rolecode@filter")
+    ): [Rolecode!]!
         @orderBy(column: "rolecode_id", direction: ASC)
         @paginate(type: CONNECTION)
         @guard
