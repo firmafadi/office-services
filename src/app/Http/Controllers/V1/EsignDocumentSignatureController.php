@@ -29,7 +29,7 @@ class EsignDocumentSignatureController extends Controller
                 return $this->doMultiFileEsignMethod($request);
             }
         } else {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
     }
 
@@ -42,7 +42,7 @@ class EsignDocumentSignatureController extends Controller
         try {
             return $this->setupSingleFileEsignDocumentSignature($documentSignatureId, $passphrase, $userId);
         } catch (\Throwable $th) {
-            return response()->json(['error' => $th->getMessage()], 500);
+            return response()->json(['message' => $th->getMessage()], 500);
         }
     }
 
@@ -56,7 +56,7 @@ class EsignDocumentSignatureController extends Controller
         try {
             return $this->setupMultiFileEsignDocumentSignature($documentSignatureIds, $passphrase, $fcmToken, $userId);
         } catch (\Throwable $th) {
-            return response()->json(['error' => $th->getMessage()], 500);
+            return response()->json(['message' => $th->getMessage()], 500);
         }
     }
 
