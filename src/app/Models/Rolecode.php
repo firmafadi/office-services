@@ -54,7 +54,7 @@ class Rolecode extends Model
     {
         $userId = auth()->user()->PeopleId;
         $OPDIds = DocumentSignatureSent::select('rolecode')
-            ->leftJoin('People as p', 'm_ttd_kirim.PeopleID', '=', 'p.PeopleId')
+            ->leftJoin('people as p', 'm_ttd_kirim.PeopleID', '=', 'p.PeopleId')
             ->leftJoin('role as r', 'p.PrimaryRoleId', '=', 'r.RoleId')
             ->whereRelation('receiver', 'PeopleId', '=', $userId)
             ->distinct()
