@@ -138,7 +138,7 @@ trait SignatureTrait
                 'longMessage' => $th->getMessage()
             ];
             // Set return failure esign
-            $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData['esignMethod'], $identifyDocument['id'], $documentType);
+            $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $identifyDocument['id'], $documentType);
         }
     }
 
@@ -197,8 +197,8 @@ trait SignatureTrait
         if ($documentType == SignatureDocumentTypeEnum::UPLOAD_DOCUMENT()) {
             return [
                 'id' => $data->id,
-                'documentId' => $data->documentSignature->id,
-                'file' => $data->documentSignature->url
+                'documentId' => $data->id,
+                'file' => $data->url
             ];
         }
     }
@@ -236,75 +236,6 @@ trait SignatureTrait
         }
 
         return auth()->user();
-    }
-
-    /**
-     * esignFailedExceptionResponse
-     *
-     * @param  array $message
-     * @param  enum $esignMethod // set null for case esign draft not yet handled
-     * @param  integer $id // set null for case esign draft not yet handled
-     * @param  enum $documentType // set null for case esign draft not yet handled
-     * @return void
-     */
-    public function esignFailedExceptionResponse($message, $esignMethod = null, $id = null, $documentType = null)
-    {
-        if ($esignMethod == null || $esignMethod == SignatureMethodTypeEnum::SINGLEFILE()) {
-            throw new CustomException($message['message'], $message['longMessage']);
-        }
-
-        // TODO
-        /** Add condition multi-file on drafting signature
-        * Since multi-file only provide on document upload
-        * this condition will be updated later if esign draft multi-file will be implement
-        */
-        if ($id != null && $documentType == SignatureDocumentTypeEnum::UPLOAD_DOCUMENT() && $esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
-            $sendToNotification = [
-                'title' => $message['message'],
-                'body' => $message['longMessage'],
-                'documentSignatureSentId' => $id,
-                'target' => DocumentSignatureSentNotificationTypeEnum::RECEIVER(),
-                'status' => SignatureStatusTypeEnum::UNSIGNED()
-            ];
-
-            // set progress queue to failed
-            DocumentSignatureSent::where('id', $id)->update([
-                'progress_queue' => SignatureQueueTypeEnum::FAILED()
-            ]);
-
-            $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);
-        }
-    }
-
-    /**
-     * doSendNotificationDocumentSignature
-     *
-     * @param  array $sendToNotification
-     * @param  enum $esignMethod
-     * @param  string $fcmToken
-     * @return mixed
-     */
-    public function doSendNotificationDocumentSignature($sendToNotification, $esignMethod, $fcmToken = null)
-    {
-        $messageAttribute = [
-            'notification' => [
-                'title' => $sendToNotification['title'],
-                'body' => $sendToNotification['body']
-            ],
-            'data' => [
-                'documentSignatureSentId' => $sendToNotification['documentSignatureSentId'],
-                'target' => $sendToNotification['target'],
-                'action' => FcmNotificationActionTypeEnum::DOC_SIGNATURE_DETAIL(),
-                'list' => FcmNotificationListTypeEnum::SIGNATURE(),
-                'status' => $sendToNotification['status']
-            ]
-        ];
-
-        if ($esignMethod == SignatureMethodTypeEnum::MULTIFILE()) {
-            $messageAttribute['data']['visible'] = false;
-        }
-
-        $this->setupDocumentSignatureSentNotification($messageAttribute, $fcmToken);
     }
 
     /**
@@ -358,5 +289,27 @@ trait SignatureTrait
         $logData['longMessage'] = 'Gagal mengirimkan file tertandatangani ke webhook, silahkan coba kembali';
 
         return $logData;
+    }
+
+    protected function setSingleFileDocumetnSignatureEsignData($userId = null, $isSignedSelf = false)
+    {
+        return [
+            'userId' => ($userId != null) ? $userId : auth()->user()->PeopleId,
+            'esignMethod' => SignatureMethodTypeEnum::SINGLEFILE(),
+            'header' => getallheaders(),
+            'isSignedSelf' => $isSignedSelf,
+        ];
+    }
+
+    protected function setResponseDocumentAlreadySigned($logData)
+    {
+        $logData['message'] = 'Dokumen telah ditandatangani';
+        $logData['longMessage'] = 'Dokumen ini telah ditandatangani oleh Anda';
+        $this->kafkaPublish('analytic_event', $logData);
+
+        $this->kafkaPublish('analytic_event', $logData);
+
+        // Set return failure esign
+        throw new CustomException($logData['message'], $logData['longMessage']);
     }
 }

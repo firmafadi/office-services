@@ -24,12 +24,15 @@ class EsignDocumentSignatureRequest extends FormRequest
     public function rules()
     {
         return [
-            'document_signature_ids' => 'required|array',
-            'document_signature_ids.*' => 'exists:sikdweb.m_ttd_kirim,id',
+            'document_signature_ids' => 'array|required_if:is_signed_self,true',
+            'document_signature_ids.*' => 'exists:sikdweb.m_ttd,id|required_if:is_signed_self,true',
+            'document_signature_sent_ids' => 'array|required_if:is_signed_self,false',
+            'document_signature_sent_ids.*' => 'exists:sikdweb.m_ttd_kirim,id|required_if:is_signed_self,false',
             'people_id' => 'exists:sikdweb.people,PeopleId',
-            'passphrase' => 'required',
+            'passphrase' => 'required|string',
             'is_signed_self' => 'required|boolean',
             'esign_type' => 'required|in:SINGLEFILE,MULTIFILE',
+            'fcm_token' => 'nullable|string',
         ];
     }
 }

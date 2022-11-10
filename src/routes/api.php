@@ -6,6 +6,7 @@ use App\Http\Controllers\V1\DocumentDraftPdfController;
 use App\Http\Controllers\V1\LoggedUserCheckController;
 use App\Http\Controllers\V1\LogUserActivityController;
 use App\Http\Controllers\V1\DocumentDownloadController;
+use App\Http\Middleware\SidebarWebhookMiddleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,5 +35,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/log-user-activity', [LogUserActivityController::class, '__invoke']);
     Route::get('/draft/{id}', [DocumentDraftPdfController::class, '__invoke']);
     Route::get('/users/{idNumber}/haslogged', [LoggedUserCheckController::class, '__invoke']);
-    Route::post('/esign/document/signature', [EsignDocumentSignatureController::class, '__invoke']);
+    Route::middleware([SidebarWebhookMiddleware::class])->group(function () {
+        Route::post('/esign/document/signature', [EsignDocumentSignatureController::class, '__invoke']);
+    });
 });

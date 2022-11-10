@@ -2,6 +2,7 @@
 
 namespace App\GraphQL\Mutations;
 
+use App\Enums\MediumTypeEnum;
 use App\Http\Traits\SetupEsignDocumentSignatureTrait;
 use Illuminate\Support\Arr;
 
@@ -22,9 +23,17 @@ class DocumentSignatureMultipleMutator
         $fcmToken                       = Arr::get($args, 'input.fcm_token');
         $passphrase                     = Arr::get($args, 'input.passphrase');
         $fcmToken                       = (isset($fcmToken)) ? $fcmToken : null;
-        $arrayOfDocumentSignatureSents  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
+        $documentsignatureSents  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
 
-        return $this->setupMultiFileEsignDocumentSignature($arrayOfDocumentSignatureSents, $passphrase, $fcmToken);
+        $requestInput = [
+            'documents' => $documentsignatureSents,
+            'passphrase' => $passphrase,
+            'fcm_token' => $fcmToken,
+            'is_self_sign' => false,
+            'medium' => MediumTypeEnum::MOBILE()
+        ];
+
+        return $this->setupMultiFileEsignDocumentSignature($requestInput);
 
     }
 }

@@ -12,7 +12,7 @@ use App\Models\DocumentSignatureSent;
 /**
  * Setup configuration for signature document
  */
-trait SignActionDocumentSignatureTrait
+trait SignUpdateDataDocumentSignatureTrait
 {
     /**
      * findNextDocumentSent
@@ -48,10 +48,17 @@ trait SignActionDocumentSignatureTrait
      *
      * @param  collection $data
      * @param  array $setNewFileData
+     * @param  array $documentSignatureEsignData
      * @return void
      */
-    protected function updateDocumentSignatureAfterEsign($data, $setNewFileData)
+    protected function updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData = null)
     {
+        if ($documentSignatureEsignData != null && $documentSignatureEsignData['isSignedSelf'] == true) {
+            $updateValue['is_signed_self'] = true;
+            $updateValue['tanggal_update'] = setDateTimeNowValue();
+        }
+
+        $updateValue['last_activity'] = setDateTimeNowValue();
         //change filename with _signed & update stastus
         $updateValue['last_activity'] = setDateTimeNowValue();
         if ($data->documentSignature->has_footer == false) {

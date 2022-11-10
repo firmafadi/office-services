@@ -60,7 +60,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
             'header' => $header,
         ];
 
-        $this->processSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData);
+        $this->initProcessSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData);
     }
 
     /**
