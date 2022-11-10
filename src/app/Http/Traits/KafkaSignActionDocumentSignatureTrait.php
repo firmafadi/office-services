@@ -7,7 +7,7 @@ use App\Enums\KafkaStatusTypeEnum;
 /**
  * Setup configuration for signature document
  */
-trait KafkaSignDocumentSignatureTrait
+trait KafkaSignActionDocumentSignatureTrait
 {
     /**
      * setKafkaDocumentApproveResponse

@@ -16,10 +16,10 @@ use App\Models\DocumentSignatureSent;
 /**
  * Setup configuration for signature document
  */
-trait SignNotificationSignDocumentSignatureTrait
+trait SignNotificationDocumentSignatureTrait
 {
     use KafkaTrait;
-    use KafkaSignDocumentSignatureTrait;
+    use KafkaSignActionDocumentSignatureTrait;
     use SendNotificationTrait;
     use SignatureTrait;
 

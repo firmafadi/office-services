@@ -291,25 +291,25 @@ trait SignatureTrait
         return $logData;
     }
 
-    protected function setSingleFileDocumetnSignatureEsignData($userId = null, $isSignedSelf = false)
-    {
-        return [
-            'userId' => ($userId != null) ? $userId : auth()->user()->PeopleId,
-            'esignMethod' => SignatureMethodTypeEnum::SINGLEFILE(),
-            'header' => getallheaders(),
-            'isSignedSelf' => $isSignedSelf,
-        ];
-    }
-
     protected function setResponseDocumentAlreadySigned($logData)
     {
         $logData['message'] = 'Dokumen telah ditandatangani';
         $logData['longMessage'] = 'Dokumen ini telah ditandatangani oleh Anda';
         $this->kafkaPublish('analytic_event', $logData);
 
-        $this->kafkaPublish('analytic_event', $logData);
-
         // Set return failure esign
         throw new CustomException($logData['message'], $logData['longMessage']);
+    }
+
+    public function checkMaximumMultipleEsign($items)
+    {
+        if (count($items) > config('sikd.maximum_multiple_esign')) {
+            throw new CustomException(
+                'Batas maksimal untuk melakukan multi-file esign adalah ' . config('sikd.maximum_multiple_esign') . ' dokumen',
+                'Permintaan Anda melewati batas maksimal untuk melakukan multi-file esign.'
+            );
+        }
+
+        return true;
     }
 }

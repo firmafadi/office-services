@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
-use App\Http\Traits\SignDocumentSignatureTrait;
+use App\Http\Traits\SignActionDocumentSignatureTrait;
 use App\Models\DocumentSignatureSent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -20,7 +20,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
-    use SignDocumentSignatureTrait;
+    use SignActionDocumentSignatureTrait;
 
     protected $documentSignatureSentId;
     protected $requestUserData;

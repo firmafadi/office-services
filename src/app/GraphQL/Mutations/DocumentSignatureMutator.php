@@ -3,12 +3,12 @@
 namespace App\GraphQL\Mutations;
 
 use App\Enums\MediumTypeEnum;
-use App\Http\Traits\SetupEsignDocumentSignatureTrait;
+use App\Http\Traits\SignInitDocumentSignatureTrait;
 use Illuminate\Support\Arr;
 
 class DocumentSignatureMutator
 {
-    use SetupEsignDocumentSignatureTrait;
+    use SignInitDocumentSignatureTrait;
 
     /**
      * @param $rootValue
@@ -24,9 +24,9 @@ class DocumentSignatureMutator
         $passphrase                 = Arr::get($args, 'input.passphrase');
 
         $requestInput = [
-            'document' => $documentSignatureSentId,
+            'id' => $documentSignatureSentId,
             'passphrase' => $passphrase,
-            'is_self_sign' => false,
+            'isSignedSelf' => false,
             'medium' => MediumTypeEnum::MOBILE()
         ];
 

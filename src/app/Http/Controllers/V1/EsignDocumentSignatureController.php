@@ -6,11 +6,11 @@ use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EsignDocumentSignatureRequest;
-use App\Http\Traits\SetupEsignDocumentSignatureTrait;
+use App\Http\Traits\SignInitDocumentSignatureTrait;
 
 class EsignDocumentSignatureController extends Controller
 {
-    use SetupEsignDocumentSignatureTrait;
+    use SignInitDocumentSignatureTrait;
 
     /**
      * Handle the incoming request.
@@ -32,9 +32,9 @@ class EsignDocumentSignatureController extends Controller
     protected function doSingleFileEsignMethod($request)
     {
         $requestInput = [
-            'documents' => ($request->is_signed_self == true) ? $request->document_signature_ids[0] : $request->document_signature_ids[0],
+            'id' => ($request->is_signed_self == true) ? $request->document_signature_ids[0] : $request->document_signature_sent_ids[0],
             'passphrase' => $request->passphrase,
-            'is_sign_self' => $request->is_sign_self,
+            'isSignedSelf' => $request->is_sign_self,
             'medium' => MediumTypeEnum::WEBSITE()
         ];
 
@@ -48,11 +48,17 @@ class EsignDocumentSignatureController extends Controller
     protected function doMultiFileEsignMethod($request)
     {
         $requestInput = [
-            'documents' => ($request->is_signed_self == true) ? $request->document_signature_ids : $request->document_signature_ids,
+            'id' => ($request->is_signed_self == true) ? $request->document_signature_ids : $request->document_signature_sent_ids,
             'passphrase' => $request->passphrase,
-            'fcm_token' => $request->fcm_token ?? null,
+            'isSignedSelf' => $request->is_sign_self,
+            'fcmToken' => $request->fcm_token ?? null,
             'medium' => MediumTypeEnum::WEBSITE()
         ];
+
+        $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);
+        if ($checkMaximumMultipleEsign != true) {
+            return $checkMaximumMultipleEsign;
+        }
 
         try {
             return $this->setupMultiFileEsignDocumentSignature($requestInput, $request->people_id, $request->is_signed_self);

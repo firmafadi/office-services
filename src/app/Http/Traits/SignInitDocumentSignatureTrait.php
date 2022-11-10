@@ -8,27 +8,45 @@ use App\Enums\SignatureQueueTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Jobs\ProcessMultipleEsignDocument;
+use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 
 /**
  * Setup configuration for signature document
  */
-trait SetupEsignDocumentSignatureTrait
+trait SignInitDocumentSignatureTrait
 {
-    use SignDocumentSignatureTrait;
+    use SignActionDocumentSignatureTrait;
 
     public function setupSingleFileEsignDocumentSignature($requestInput, $userId = null)
     {
-        $documentSignatureSent = DocumentSignatureSent::findOrFail($requestInput['documentSignatureSentId']);
-        $logData = $this->setKafkaDocumentApproveResponse($documentSignatureSent->id);
-        if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
-            return $this->setResponseDocumentAlreadySigned($logData);
+        if ($requestInput['isSignedSelf'] == true) {
+            $documentSignature = DocumentSignature::findOrFail($requestInput['id']);
+            $logData = $this->setKafkaDocumentApproveResponse($documentSignature->id);
+            if ($documentSignature->status != SignatureStatusTypeEnum::WAITING()->value && $documentSignature->is_signed_self == false) {
+                return $this->setResponseDocumentAlreadySigned($logData);
+            }
         }
 
+        if ($requestInput['isSignedSelf'] == false) {
+            $documentSignatureSent = DocumentSignatureSent::findOrFail($requestInput['id']);
+            $logData = $this->setKafkaDocumentApproveResponse($documentSignatureSent->id);
+            if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
+                return $this->setResponseDocumentAlreadySigned($logData);
+            }
+        }
+
+        return $this->doSingleFileEsignDocumentSignature($requestInput, $userId);
+    }
+
+    protected function doSingleFileEsignDocumentSignature($requestInput, $userId)
+    {
         $setupConfig = $this->setupCheckUserSignature($userId);
         if ($setupConfig == true) {
-            $documentSignatureEsignData = $this->setSingleFileDocumetnSignatureEsignData($userId);
-            return $this->initProcessSignDocumentSignature($requestInput['documentSignatureSentId'], $requestInput['passphrase'], $documentSignatureEsignData);
+            $requestInput['userId']      = ($userId != null) ? $userId : auth()->user()->PeopleId;
+            $requestInput['esignMethod'] = SignatureMethodTypeEnum::SINGLEFILE();
+            $requestInput['header']      = getallheaders();
+            return $this->initProcessSignDocumentSignature($requestInput);
         } else {
             return $setupConfig;
         }
@@ -36,15 +54,8 @@ trait SetupEsignDocumentSignatureTrait
 
     public function setupMultiFileEsignDocumentSignature($requestInput, $userId = null, $isSignedSelf = null)
     {
-        if (count($requestInput['documents']) > config('sikd.maximum_multiple_esign')) {
-            throw new CustomException(
-                'Batas maksimal untuk melakukan multi-file esign adalah ' . config('sikd.maximum_multiple_esign') . ' dokumen',
-                'Permintaan Anda melewati batas maksimal untuk melakukan multi-file esign.'
-            );
-        }
-
         // set rule for queue only failed or null and non signed/rejected data
-        $documentSignatureSents = $this->listDocumentSignatureSentMultiple($requestInput['documents']);
+        $documentSignatureSents = $this->listDocumentSignatureSentMultiple($requestInput['id']);
         if ($documentSignatureSents->isEmpty()) {
             throw new CustomException(
                 'Antrian dokumen telah dieksekusi',

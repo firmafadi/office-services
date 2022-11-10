@@ -16,53 +16,50 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Setup configuration for signature document
  */
-trait SignDocumentSignatureTrait
+trait SignActionDocumentSignatureTrait
 {
     use SignUpdateDataDocumentSignatureTrait;
     use KafkaTrait;
-    use KafkaSignDocumentSignatureTrait;
+    use KafkaSignActionDocumentSignatureTrait;
     use SendNotificationTrait;
     use SignatureTrait;
-    use SignNotificationSignDocumentSignatureTrait;
+    use SignNotificationDocumentSignatureTrait;
 
     /**
      * initProcessSignDocumentSignature
      *
-     * @param  mixed $itemId
-     * @param  mixed $passphrase
      * @param  array $documentSignatureEsignData
      * @param  array $header
      * @return void
      */
-    protected function initProcessSignDocumentSignature($itemId, $passphrase, $documentSignatureEsignData)
+    protected function initProcessSignDocumentSignature($documentSignatureEsignData)
     {
         if ($documentSignatureEsignData['isSignedSelf'] == true) {
-            $data = DocumentSignature::findOrFail($itemId);
+            $data = DocumentSignature::findOrFail($documentSignatureEsignData['id']);
             if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
                 $data->progress_queue = SignatureQueueTypeEnum::PROCESS();
                 $data->save();
             }
         } else {
-            $data = DocumentSignatureSent::findOrFail($itemId);
+            $data = DocumentSignatureSent::findOrFail($documentSignatureEsignData['id']);
             if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
                 $data->progress_queue = SignatureQueueTypeEnum::PROCESS();
                 $data->save();
             }
         }
 
-        return $this->processSignDocumentSignature($data, $passphrase, $documentSignatureEsignData);
+        return $this->processSignDocumentSignature($data, $documentSignatureEsignData);
     }
 
     /**
      * processSignDocumentSignature
      *
      * @param  mixed $data
-     * @param  mixed $passphrase
      * @param  array $documentSignatureEsignData
      * @param  array $header
      * @return void
      */
-    protected function processSignDocumentSignature($data, $passphrase, $documentSignatureEsignData)
+    protected function processSignDocumentSignature($data, $documentSignatureEsignData)
     {
         $setupConfig = $this->setupConfigSignature($documentSignatureEsignData['userId']); // add user id for queue
 
@@ -80,7 +77,7 @@ trait SignDocumentSignatureTrait
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $documentItem, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
 
-        $signature = $this->doSignature($setupConfig, $data, $passphrase, $documentSignatureEsignData);
+        $signature = $this->doSignature($setupConfig, $data, $documentSignatureEsignData);
         return $signature;
     }
 
@@ -89,11 +86,10 @@ trait SignDocumentSignatureTrait
      *
      * @param  array $setupConfig
      * @param  collection $data
-     * @param  string $passphrase
      * @param  array $documentSignatureEsignData
      * @return collection
      */
-    protected function doSignature($setupConfig, $data, $passphrase, $documentSignatureEsignData)
+    protected function doSignature($setupConfig, $data, $documentSignatureEsignData)
     {
         $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         $setNewFileData = $this->setNewFileData($documentData);
@@ -102,7 +98,7 @@ trait SignDocumentSignatureTrait
             'Authorization' => 'Basic ' . $setupConfig['auth'], 'Cookie' => 'JSESSIONID=' . $setupConfig['cookies'],
         ])->attach('file', $pdfFile, $documentData->file)->post($setupConfig['url'] . '/api/sign/pdf', [
             'nik'           => $setupConfig['nik'],
-            'passphrase'    => $passphrase,
+            'passphrase'    => $documentSignatureEsignData['passphrase'],
             'tampilan'      => 'invisible',
             'image'         => 'false',
         ]);

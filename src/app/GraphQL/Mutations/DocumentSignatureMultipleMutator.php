@@ -3,12 +3,12 @@
 namespace App\GraphQL\Mutations;
 
 use App\Enums\MediumTypeEnum;
-use App\Http\Traits\SetupEsignDocumentSignatureTrait;
+use App\Http\Traits\SignInitDocumentSignatureTrait;
 use Illuminate\Support\Arr;
 
 class DocumentSignatureMultipleMutator
 {
-    use SetupEsignDocumentSignatureTrait;
+    use SignInitDocumentSignatureTrait;
 
     /**
      * @param $rootValue
@@ -26,12 +26,17 @@ class DocumentSignatureMultipleMutator
         $documentsignatureSents  = explode(', ', Arr::get($args, 'input.documentSignatureSentIds'));
 
         $requestInput = [
-            'documents' => $documentsignatureSents,
+            'id' => $documentsignatureSents,
             'passphrase' => $passphrase,
-            'fcm_token' => $fcmToken,
-            'is_self_sign' => false,
+            'fcmToken' => $fcmToken,
+            'isSignedSelf' => false,
             'medium' => MediumTypeEnum::MOBILE()
         ];
+
+        $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);
+        if ($checkMaximumMultipleEsign != true) {
+            return $checkMaximumMultipleEsign;
+        }
 
         return $this->setupMultiFileEsignDocumentSignature($requestInput);
 
