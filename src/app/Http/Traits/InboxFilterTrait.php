@@ -334,15 +334,24 @@ trait InboxFilterTrait
         $deptsIds = $filter['senderDepts'] ?? null;
         if ($deptsIds) {
             $arrayIds = explode(", ", $deptsIds);
-            $query->leftJoin('inbox', 'inbox_receiver.NId', '=', 'inbox.NId')
-                ->leftJoin('people', 'inbox.createdBy', '=', 'people.PeopleId')
-                ->leftJoin('role', 'people.PrimaryRoleId', '=', 'role.RoleId')
-                ->where(
-                    fn($query) => $query
-                        ->whereIn('role.roleCode', $arrayIds)
-                        ->whereNull('inbox.InstansiPengirimId')
-                        ->orWhereIn('inbox.InstansiPengirimId', $arrayIds)
-                );
+            $query->whereIn('NId', fn($query)
+                => $query
+                    ->select('NId')
+                    ->from('inbox')
+                    ->whereIn('createdBy', fn($query)
+                        => $query
+                            ->select('PeopleId')
+                            ->from('people')
+                            ->whereIn('PrimaryRoleId', fn($query)
+                                => $query
+                                    ->select('RoleId')
+                                    ->from('role')
+                                    ->where(fn($query)
+                                        => $query
+                                            ->whereIn('role.roleCode', $arrayIds)
+                                            ->where('AsalNaskah', 'internal')
+                                            ->whereNull('InstansiPengirimId')
+                                            ->orWhereIn('InstansiPengirimId', $arrayIds)))));
         }
     }
 
