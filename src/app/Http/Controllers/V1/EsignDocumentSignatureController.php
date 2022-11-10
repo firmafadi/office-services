@@ -34,7 +34,7 @@ class EsignDocumentSignatureController extends Controller
         $requestInput = [
             'id' => ($request->is_signed_self == true) ? $request->document_signature_ids[0] : $request->document_signature_sent_ids[0],
             'passphrase' => $request->passphrase,
-            'isSignedSelf' => $request->is_sign_self,
+            'isSignedSelf' => $request->is_signed_self,
             'medium' => MediumTypeEnum::WEBSITE()
         ];
 
@@ -50,7 +50,7 @@ class EsignDocumentSignatureController extends Controller
         $requestInput = [
             'id' => ($request->is_signed_self == true) ? $request->document_signature_ids : $request->document_signature_sent_ids,
             'passphrase' => $request->passphrase,
-            'isSignedSelf' => $request->is_sign_self,
+            'isSignedSelf' => $request->is_signed_self,
             'fcmToken' => $request->fcm_token ?? null,
             'medium' => MediumTypeEnum::WEBSITE()
         ];
