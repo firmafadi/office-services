@@ -62,19 +62,14 @@ trait SignActionDocumentSignatureTrait
     protected function processSignDocumentSignature($data, $documentSignatureEsignData)
     {
         $setupConfig = $this->setupConfigSignature($documentSignatureEsignData['userId']); // add user id for queue
+        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
 
-        if ($documentSignatureEsignData['isSignedSelf'] == true) {
-            $documentItem = $data->url;
-        } else {
-            $documentItem = $data->documentSignature->url;
-        }
-
-        $file = $this->fileExist($documentItem);
+        $file = $this->fileExist($documentData->url);
         if (!$file) {
             $logData = $this->setKafkaDocumentNotFoundSignatureSent();
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $documentItem, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $documentData->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
 
         $signature = $this->doSignature($setupConfig, $data, $documentSignatureEsignData);
@@ -91,7 +86,7 @@ trait SignActionDocumentSignatureTrait
      */
     protected function doSignature($setupConfig, $data, $documentSignatureEsignData)
     {
-        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
+        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
         $setNewFileData = $this->setNewFileData($documentData);
         $pdfFile = $this->pdfFile($documentData, $setNewFileData['verifyCode'], $documentSignatureEsignData);
         $response = Http::withHeaders([
@@ -114,9 +109,9 @@ trait SignActionDocumentSignatureTrait
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
             //Save new file & update status
-            $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
+            $doUpdate = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
-            return $data;
+            return $doUpdate;
         }
     }
 
@@ -139,17 +134,17 @@ trait SignActionDocumentSignatureTrait
     /**
      * pdfFile
      *
-     * @param  mixed $data
+     * @param  collection $documentData
      * @param  string $verifyCode
      * @param  array $documentSignatureEsignData
      * @return mixed
      */
-    protected function pdfFile($data, $verifyCode, $documentSignatureEsignData)
+    protected function pdfFile($documentData, $verifyCode, $documentSignatureEsignData)
     {
-        if ($data->has_footer == false) {
-            $pdfFile = $this->addFooterDocument($data, $verifyCode, $documentSignatureEsignData);
+        if ($documentData->has_footer == false) {
+            $pdfFile = $this->addFooterDocument($documentData, $verifyCode, $documentSignatureEsignData);
         } else {
-            $pdfFile = file_get_contents($data->url);
+            $pdfFile = file_get_contents($documentData->url);
         }
 
         return $pdfFile;
@@ -170,21 +165,21 @@ trait SignActionDocumentSignatureTrait
     /**
      * addFooterDocument
      *
-     * @param  mixed  $data
+     * @param  collection  $documentData
      * @param  string $verifyCode
      * @param  array $documentSignatureEsignData
      * @return mixed
      */
-    protected function addFooterDocument($data, $verifyCode, $documentSignatureEsignData)
+    protected function addFooterDocument($documentData, $verifyCode, $documentSignatureEsignData)
     {
         try {
             $addFooter = Http::attach(
                 'pdf',
-                file_get_contents($data->url),
-                $data->file
+                file_get_contents($documentData->url),
+                $documentData->file
             )->post(config('sikd.add_footer_url'), [
                 'qrcode' => config('sikd.url') . 'verification/document/tte/' . $verifyCode . '?source=qrcode',
-                'category' => $data->documentSignatureType->document_paper_type,
+                'category' => $documentData->documentSignatureType->document_paper_type,
                 'code' => $verifyCode
             ]);
 
@@ -193,7 +188,7 @@ trait SignActionDocumentSignatureTrait
             $logData = [
                 'event' => 'esign_FOOTER_pdf',
                 'status' => KafkaStatusTypeEnum::ESIGN_FOOTER_FAILED_UNKNOWN(),
-                'esign_source_file' => $data->url,
+                'esign_source_file' => $documentData->url,
                 'esign_response' => $th,
                 'message' => 'Gagal menambahkan QRCode dan text footer',
                 'longMessage' => 'Gagal menambahkan QRCode dan text footer kedalam PDF, silahkan coba kembali'
@@ -201,7 +196,7 @@ trait SignActionDocumentSignatureTrait
 
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $documentData->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
     }
 
@@ -220,13 +215,14 @@ trait SignActionDocumentSignatureTrait
         //save to storage path for temporary file
         Storage::disk('local')->put($setNewFileData['newFileName'], $pdf->body());
 
+        $nextDocumentSent = false;
         if ($documentSignatureEsignData['isSignedSelf'] == false) {
             //find this document is not last on list
             $nextDocumentSent = $this->findNextDocumentSent($data);
         }
 
         //transfer to existing service
-        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $nextDocumentSent, $documentSignatureEsignData);
+        $response = $this->doTransferFile($data, $setNewFileData['newFileName'], $documentSignatureEsignData, $nextDocumentSent);
         Storage::disk('local')->delete($setNewFileData['newFileName']);
 
         if ($response->status() != Response::HTTP_OK) {
@@ -235,10 +231,10 @@ trait SignActionDocumentSignatureTrait
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
-            if ($documentSignatureEsignData['isSignedSelf'] == false) {
-                return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
-            } else {
+            if ($documentSignatureEsignData['isSignedSelf'] == true) {
                 return $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
+            } else {
+                return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
             }
         }
     }
@@ -248,29 +244,15 @@ trait SignActionDocumentSignatureTrait
      *
      * @param collection $data
      * @param string $newFileName
-     * @param collection $nextDocumentSent
+     * @param mixed $nextDocumentSent (collection / boolean false)
      * @param array $documentSignatureEsignData
      * @return mixed
      */
-    protected function doTransferFile($data, $newFileName, $nextDocumentSent, $documentSignatureEsignData)
+    protected function doTransferFile($data, $newFileName, $documentSignatureEsignData, $nextDocumentSent)
     {
+        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         try {
-            $documentRequest = [
-                'first_tier' => false,
-                'last_tier' => false,
-                'document_name' => $data->documentSignature->file // original name file before renamed
-            ];
-
-            if ($data->urutan == 1) {
-                // Remove original file (first tier)
-                $documentRequest['first_tier'] = true;
-            }
-
-            if (!$nextDocumentSent && $data->documentSignature->documentSignatureType->is_mandatory_registered == false) {
-                // Remove draft file (last tier) if document didn't required to register before download/distribute
-                $documentRequest['last_tier'] = true;
-                $documentRequest['document_name'] = $data->documentSignature->tmp_draft_file;
-            }
+            $documentRequest = $this->setupBodyRequestTransferFile($data, $documentData, $documentSignatureEsignData, $nextDocumentSent);
 
             $fileSignatured = fopen(Storage::path($newFileName), 'r');
             $response = Http::withHeaders([
@@ -279,11 +261,42 @@ trait SignActionDocumentSignatureTrait
 
             return $response;
         } catch (\Throwable $th) {
-            $logData = $this->logInvalidConnectTransferFile('esign_transfer_pdf', $data->documentSignature->url, $th);
+            $logData = $this->logInvalidConnectTransferFile('esign_transfer_pdf', $documentData->url, $th);
             $this->kafkaPublish('analytic_event', $logData);
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $documentData->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         }
+    }
+
+    /**
+     * setupBodyRequestTransferFile
+     *
+     * @param  collection $data
+     * @param  collection $documentData
+     * @param  array $documentSignatureEsignData
+     * @param  mixed $nextDocumentSent (collection / boolean false when isSignedSelf = true)
+     * @return array
+     */
+    protected function setupBodyRequestTransferFile($data, $documentData, $documentSignatureEsignData, $nextDocumentSent)
+    {
+        $documentRequest = [
+            'first_tier' => ($documentSignatureEsignData['isSignedSelf'] == true) ? true : false, // true => Remove original file (first tier)
+            'last_tier' => false, // true => Remove draft file (last tier) if document didn't required to register before download/distribute
+            'document_name' => $documentData->file // original name file before renamed
+        ];
+
+        if ($documentSignatureEsignData['isSignedSelf'] == false) {
+            if ($data->urutan == 1) {
+                $documentRequest['first_tier'] = true;
+            }
+        }
+
+        if (!$nextDocumentSent && !$documentData->documentSignatureType->is_mandatory_registered) {
+            $documentRequest['last_tier'] = true;
+            $documentRequest['document_name'] = $documentData->tmp_draft_file;
+        }
+
+        return $documentRequest;
     }
 
     /**
@@ -297,13 +310,14 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData)
     {
+        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         DB::beginTransaction();
         try {
             //update document after esign (set if new file or update last activity)
-            $this->updateDocumentSignatureAfterEsign($data, $setNewFileData);
+            $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
 
             //update status document sent to 1 (signed)
-            $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
+            $update = $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
 
             //Send notification status to who esign the document if multi-file esign
             if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
@@ -323,9 +337,11 @@ trait SignActionDocumentSignatureTrait
                 $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $documentSignatureEsignData['esignMethod']);
             }
             DB::commit();
+
+            return $update;
         } catch (\Throwable $th) {
             DB::rollBack();
-            $logData = $this->setLogFailedUpdateDataAfterEsign($data, $th);
+            $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
 
             // Set return failure esign
@@ -345,15 +361,18 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData)
     {
+        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         DB::beginTransaction();
         try {
             //update document after esign (set if new file or update last activity)
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
+            $updateData = DocumentSignature::where('id', $data->id);
 
             DB::commit();
+            return $updateData;
         } catch (\Throwable $th) {
             DB::rollBack();
-            $logData = $this->setLogFailedUpdateDataAfterEsign($data, $th);
+            $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
 
             // Set return failure esign

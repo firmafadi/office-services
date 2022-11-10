@@ -51,22 +51,28 @@ trait SignUpdateDataDocumentSignatureTrait
      * @param  array $documentSignatureEsignData
      * @return void
      */
-    protected function updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData = null)
+    protected function updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData)
     {
-        if ($documentSignatureEsignData != null && $documentSignatureEsignData['isSignedSelf'] == true) {
+        $id = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data->id : $data->ttd_id;
+        $dataDocument = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
+
+        if ($documentSignatureEsignData['isSignedSelf'] == true) {
             $updateValue['is_signed_self'] = true;
             $updateValue['tanggal_update'] = setDateTimeNowValue();
+
+            if (!$data->is_forwardable) {
+                $this->updateDocumentSignatureLastPeopleAction($id);
+            }
         }
 
-        $updateValue['last_activity'] = setDateTimeNowValue();
         //change filename with _signed & update stastus
         $updateValue['last_activity'] = setDateTimeNowValue();
-        if ($data->documentSignature->has_footer == false) {
+        if (!$dataDocument->has_footer) {
             $updateValue['file']        = $setNewFileData['newFileName'];
             $updateValue['code']        = $setNewFileData['verifyCode'];
             $updateValue['has_footer']  = true;
         }
-        $updateFileData = DocumentSignature::where('id', $data->ttd_id)->update($updateValue);
+        $updateFileData = DocumentSignature::where('id', $id)->update($updateValue);
 
         return $updateFileData;
     }

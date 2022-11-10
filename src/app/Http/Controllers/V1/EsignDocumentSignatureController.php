@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\V1;
 
-use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EsignDocumentSignatureRequest;
@@ -35,13 +34,12 @@ class EsignDocumentSignatureController extends Controller
             'id' => ($request->is_signed_self == true) ? $request->document_signature_ids[0] : $request->document_signature_sent_ids[0],
             'passphrase' => $request->passphrase,
             'isSignedSelf' => $request->is_signed_self,
-            'medium' => MediumTypeEnum::WEBSITE()
         ];
 
         try {
             return $this->setupSingleFileEsignDocumentSignature($requestInput, $request->people_id);
         } catch (\Throwable $th) {
-            return response()->json(['message' => $th->getMessage()], 500);
+            return response()->json(['message' => $th->getMessage() . '-' . $th->getLine() . '-' . $th->getFile()], 500);
         }
     }
 
@@ -52,7 +50,6 @@ class EsignDocumentSignatureController extends Controller
             'passphrase' => $request->passphrase,
             'isSignedSelf' => $request->is_signed_self,
             'fcmToken' => $request->fcm_token ?? null,
-            'medium' => MediumTypeEnum::WEBSITE()
         ];
 
         $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);

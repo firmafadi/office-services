@@ -2,7 +2,6 @@
 
 namespace App\GraphQL\Mutations;
 
-use App\Enums\MediumTypeEnum;
 use App\Http\Traits\SignInitDocumentSignatureTrait;
 use Illuminate\Support\Arr;
 
@@ -27,7 +26,6 @@ class DocumentSignatureMutator
             'id' => $documentSignatureSentId,
             'passphrase' => $passphrase,
             'isSignedSelf' => false,
-            'medium' => MediumTypeEnum::MOBILE()
         ];
 
         return $this->setupSingleFileEsignDocumentSignature($requestInput);

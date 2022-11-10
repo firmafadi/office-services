@@ -43,7 +43,11 @@ trait SignNotificationDocumentSignatureTrait
         * Since multi-file only provide on document upload
         * this condition will be updated later if esign draft multi-file will be implement
         */
-        if ($id != null && $documentType == SignatureDocumentTypeEnum::UPLOAD_DOCUMENT() && $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+        if (
+            $id != null &&
+            $documentType == SignatureDocumentTypeEnum::UPLOAD_DOCUMENT() &&
+            $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
+            $documentSignatureEsignData['isSignedSelf'] == false) {
             // set progress queue to failed
             DocumentSignatureSent::where('id', $id)->update([
                 'progress_queue' => SignatureQueueTypeEnum::FAILED()
@@ -95,16 +99,16 @@ trait SignNotificationDocumentSignatureTrait
     /**
      * setLogFailedUpdateDataAfterEsign
      *
-     * @param  collection $data
+     * @param  collection $documentData
      * @param  mixed $th
      * @return array
      */
-    protected function setLogFailedUpdateDataAfterEsign($data, $th)
+    protected function setLogFailedUpdateDataAfterEsign($documentData, $th)
     {
         return [
             'event' => 'esign_update_status_document_upload_pdf',
             'status' => KafkaStatusTypeEnum::ESIGN_INVALID_UPDATE_STATUS_AND_DATA(),
-            'esign_source_file' => $data->documentSignature->url,
+            'esign_source_file' => $documentData->url,
             'response' => $th,
             'message' => 'Gagal menyimpan perubahan data',
             'longMessage' => $th->getMessage()

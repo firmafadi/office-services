@@ -70,7 +70,6 @@ trait SignInitDocumentSignatureTrait
                 'userId'        => ($userId != null) ? $userId : auth()->user()->PeopleId,
                 'passphrase'    => $requestInput['passphrase'],
                 'header'        => getallheaders(),
-                'medium'        => $requestInput['medium']
             ];
 
             $this->doDocumentSignatureMultiple($documentSignatureSents, $requestUserData);

@@ -2,7 +2,6 @@
 
 namespace App\GraphQL\Mutations;
 
-use App\Enums\MediumTypeEnum;
 use App\Http\Traits\SignInitDocumentSignatureTrait;
 use Illuminate\Support\Arr;
 
@@ -30,7 +29,6 @@ class DocumentSignatureMultipleMutator
             'passphrase' => $passphrase,
             'fcmToken' => $fcmToken,
             'isSignedSelf' => false,
-            'medium' => MediumTypeEnum::MOBILE()
         ];
 
         $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);
