@@ -38,7 +38,7 @@ trait SignNotificationDocumentSignatureTrait
             throw new CustomException($message['message'], $message['longMessage']);
         }
 
-        // TODO : !IMPORTANT => ADD CASE FOR SELF SIGN MULTI FILE
+        // TODO : !IMPORTANT => ADD CASE FOR SELF SIGN MULTI FILE NOTIFICATION
         /** Add condition multi-file on drafting signature
         * Since multi-file only provide on document upload
         * this condition will be updated later if esign draft multi-file will be implement

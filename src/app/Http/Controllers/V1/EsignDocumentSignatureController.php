@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\V1;
 
+use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EsignDocumentSignatureRequest;
 use App\Http\Traits\SignInitDocumentSignatureTrait;
+use Illuminate\Http\Response;
 
 class EsignDocumentSignatureController extends Controller
 {
@@ -24,6 +26,12 @@ class EsignDocumentSignatureController extends Controller
         }
 
         if ($request->esign_type == SignatureMethodTypeEnum::MULTIFILE()) {
+            /**
+             * TODO : CREATE KEY ON REDIS IF USER IS DOING MULTIFILE ESIGN
+             * SAVE ERROR STATE ON REDIS ESIGN ITEM BASE ON USER
+             * SET ON REDIS PROGRESS ALL (GLOBAL AND EACH ITEM) QUEUE MULTIFILE ESIGN
+             * NOTIFICATION WILL BE ADD LATER
+             */
             return $this->doMultiFileEsignMethod($request);
         }
     }
@@ -37,9 +45,10 @@ class EsignDocumentSignatureController extends Controller
         ];
 
         try {
-            return $this->setupSingleFileEsignDocumentSignature($requestInput, $request->people_id);
+            $response = $this->setupSingleFileEsignDocument($requestInput, $request->people_id);
+            return response()->json(['data' => $response], Response::HTTP_OK);
         } catch (\Throwable $th) {
-            return response()->json(['message' => $th->getMessage() . '-' . $th->getLine() . '-' . $th->getFile()], 500);
+            return response()->json(['message' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -50,6 +59,7 @@ class EsignDocumentSignatureController extends Controller
             'passphrase' => $request->passphrase,
             'isSignedSelf' => $request->is_signed_self,
             'fcmToken' => $request->fcm_token ?? null,
+            'medium' => MediumTypeEnum::WEBSITE(),
         ];
 
         $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);
@@ -58,9 +68,10 @@ class EsignDocumentSignatureController extends Controller
         }
 
         try {
-            return $this->setupMultiFileEsignDocumentSignature($requestInput, $request->people_id, $request->is_signed_self);
+            $response = $this->setupMultiFileEsignDocument($requestInput, $request->people_id);
+            return response()->json(['data' => $response], Response::HTTP_OK);
         } catch (\Throwable $th) {
-            return response()->json(['message' => $th->getMessage()], 500);
+            return response()->json(['message' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

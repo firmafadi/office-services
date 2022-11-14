@@ -28,6 +28,6 @@ class DocumentSignatureMutator
             'isSignedSelf' => false,
         ];
 
-        return $this->setupSingleFileEsignDocumentSignature($requestInput);
+        return $this->setupSingleFileEsignDocument($requestInput);
     }
 }

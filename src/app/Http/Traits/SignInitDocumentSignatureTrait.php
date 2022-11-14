@@ -18,7 +18,7 @@ trait SignInitDocumentSignatureTrait
 {
     use SignActionDocumentSignatureTrait;
 
-    public function setupSingleFileEsignDocumentSignature($requestInput, $userId = null)
+    public function setupSingleFileEsignDocument($requestInput, $userId = null)
     {
         if ($requestInput['isSignedSelf'] == true) {
             $documentSignature = DocumentSignature::findOrFail($requestInput['id']);
@@ -36,10 +36,10 @@ trait SignInitDocumentSignatureTrait
             }
         }
 
-        return $this->doSingleFileEsignDocumentSignature($requestInput, $userId);
+        return $this->doSingleFileEsignDocument($requestInput, $userId);
     }
 
-    protected function doSingleFileEsignDocumentSignature($requestInput, $userId)
+    protected function doSingleFileEsignDocument($requestInput, $userId)
     {
         $setupConfig = $this->setupCheckUserSignature($userId);
         if ($setupConfig == true) {
@@ -52,32 +52,36 @@ trait SignInitDocumentSignatureTrait
         }
     }
 
-    public function setupMultiFileEsignDocumentSignature($requestInput, $userId = null, $isSignedSelf = null)
+    public function setupMultiFileEsignDocument($requestInput, $userId = null)
     {
         // set rule for queue only failed or null and non signed/rejected data
-        $documentSignatureSents = $this->listDocumentSignatureSentMultiple($requestInput['id']);
-        if ($documentSignatureSents->isEmpty()) {
+        if ($requestInput['isSignedSelf'] == true) {
+            $documents = $this->listDocumentSignatureMultiple($requestInput['id']);
+        } else {
+            $documents = $this->listDocumentSignatureSentMultiple($requestInput['id']);
+        }
+        if ($documents->isEmpty()) {
             throw new CustomException(
                 'Antrian dokumen telah dieksekusi',
                 'Antrian dokumen telah dieksekusi oleh sistem, silahkan menunggu hingga selesai.'
             );
         }
 
+        return $this->doMultiFileEsignDocument($documents, $requestInput, $userId);
+    }
+
+    public function doMultiFileEsignDocument($documents, $requestInput, $userId = null)
+    {
         $setupConfig = $this->setupCheckUserSignature($userId);
         if ($setupConfig == true) {
-            $requestUserData = [
-                'fcmToken'      => $requestInput['fcmToken'],
-                'userId'        => ($userId != null) ? $userId : auth()->user()->PeopleId,
-                'passphrase'    => $requestInput['passphrase'],
-                'header'        => getallheaders(),
-            ];
-
-            $this->doDocumentSignatureMultiple($documentSignatureSents, $requestUserData);
+            $requestInput['userId']      = ($userId != null) ? $userId : auth()->user()->PeopleId;
+            $requestInput['header']      = getallheaders();
+            $this->doDocumentSignatureMultiple($documents, $requestInput);
         } else {
             return $setupConfig;
         }
 
-        return $documentSignatureSents;
+        return $documents;
     }
 
     protected function setupCheckUserSignature($userId = null)
@@ -113,18 +117,36 @@ trait SignInitDocumentSignatureTrait
     }
 
     /**
+     * listDocumentSignatureMultiple
+     *
+     * @param  array $splitDocumentSignatureIds
+     * @return collection
+     */
+    protected function listDocumentSignatureMultiple($splitDocumentSignatureIds)
+    {
+        $query = DocumentSignature::whereIn('id', $splitDocumentSignatureIds)
+            ->where('status', SignatureStatusTypeEnum::WAITING()->value)
+            ->where(function ($query) {
+                $query->whereNull('progress_queue')
+                    ->orWhere('progress_queue', SignatureQueueTypeEnum::FAILED());
+            })->get();
+
+        return $query;
+    }
+
+    /**
      * doDocumentSignatureMultiple
      *
-     * @param  array $documentSignatureSents
-     * @param  array $requestUserData
+     * @param  array $items
+     * @param  array $requestInput
      * @return array
      */
-    protected function doDocumentSignatureMultiple($documentSignatureSents, $requestUserData)
+    protected function doDocumentSignatureMultiple($items, $requestInput)
     {
-        foreach ($documentSignatureSents as $documentSignatureSent) {
-            ProcessMultipleEsignDocument::dispatch($documentSignatureSent->id, $requestUserData);
+        foreach ($items as $item) {
+            ProcessMultipleEsignDocument::dispatch($item->id, $items, $requestInput);
         }
 
-        return $documentSignatureSents;
+        return $items;
     }
 }

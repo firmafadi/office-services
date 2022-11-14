@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
 use App\Http\Traits\SignActionDocumentSignatureTrait;
+use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -22,7 +23,8 @@ class ProcessMultipleEsignDocument implements ShouldQueue
     use SerializesModels;
     use SignActionDocumentSignatureTrait;
 
-    protected $documentSignatureSentId;
+    protected $id;
+    protected $ids;
     protected $requestUserData;
 
     /**
@@ -30,10 +32,11 @@ class ProcessMultipleEsignDocument implements ShouldQueue
      *
      * @return void
      */
-    public function __construct($documentSignatureSentId, $requestUserData)
+    public function __construct($id, $ids, $requestUserData)
     {
-        $this->documentSignatureSentId  = $documentSignatureSentId;
-        $this->requestUserData          = $requestUserData;
+        $this->id               = $id;
+        $this->ids              = $ids;
+        $this->requestUserData  = $requestUserData;
     }
 
     /**
@@ -43,24 +46,29 @@ class ProcessMultipleEsignDocument implements ShouldQueue
      */
     public function handle()
     {
-        $userId                   = $this->requestUserData['userId'];
-        $fcmToken                 = $this->requestUserData['fcmToken'];
-        $passphrase               = $this->requestUserData['passphrase'];
-        $header                   = $this->requestUserData['header'];
-        $documentSignatureSentId  = $this->documentSignatureSentId;
-
-        DocumentSignatureSent::where('id', $documentSignatureSentId)->update([
-            'progress_queue' => SignatureQueueTypeEnum::WAITING()
-        ]);
+        if ($this->requestUserData['isSignedSelf'] == true) {
+            DocumentSignature::where('id', $this->id)->update([
+                'progress_queue' => SignatureQueueTypeEnum::WAITING()
+            ]);
+        } else {
+            DocumentSignatureSent::where('id', $this->id)->update([
+                'progress_queue' => SignatureQueueTypeEnum::WAITING()
+            ]);
+        }
 
         $documentSignatureEsignData = [
-            'userId' => $userId,
-            'fcmToken' => $fcmToken,
+            'id' => $this->id,
+            'ids' => $this->ids,
+            'userId' => $this->requestUserData['userId'],
+            'passphrase' => $this->requestUserData['passphrase'],
             'esignMethod' => SignatureMethodTypeEnum::MULTIFILE(),
-            'header' => $header,
+            'isSignedSelf' => $this->requestUserData['isSignedSelf'],
+            'header' => $this->requestUserData['header'],
+            'fcmToken' => $this->requestUserData['fcmToken'],
+            'medium' => $this->requestUserData['medium'],
         ];
 
-        $this->initProcessSignDocumentSignature($documentSignatureSentId, $passphrase, $documentSignatureEsignData);
+        $this->initProcessSignDocumentSignature($documentSignatureEsignData);
     }
 
     /**
@@ -71,9 +79,10 @@ class ProcessMultipleEsignDocument implements ShouldQueue
      */
     public function failed(Throwable $exception)
     {
-        DocumentSignatureSent::where('id', $this->documentSignatureSentId)
+        DocumentSignatureSent::where('id', $this->id)
                             ->update([
-                                'progress_queue' => SignatureQueueTypeEnum::FAILED()
+                                'progress_queue' => SignatureQueueTypeEnum::FAILED(),
+                                'queue_message' => $exception->getMessage()
                             ]);
     }
 }
