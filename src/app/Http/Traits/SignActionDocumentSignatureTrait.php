@@ -3,6 +3,7 @@
 namespace App\Http\Traits;
 
 use App\Enums\KafkaStatusTypeEnum;
+use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
@@ -11,6 +12,7 @@ use App\Models\DocumentSignatureSent;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -111,7 +113,24 @@ trait SignActionDocumentSignatureTrait
             //Save new file & update status
             $doUpdate = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
+
+            if ($documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() && $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+                $this->checkIsLastItemQueueRedis($data->id, $documentSignatureEsignData);
+            }
             return $doUpdate;
+        }
+    }
+
+    protected function checkIsLastItemQueueRedis($id, $documentSignatureEsignData)
+    {
+        if ($id == end($documentSignatureEsignData['items'])) {
+            $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
+            $checkQueue = Redis::get($key);
+            if (isset($checkQueue)) {
+                $data = json_decode($checkQueue, true);
+                $data['status'] = SignatureQueueTypeEnum::DONE();
+                Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
+            }
         }
     }
 

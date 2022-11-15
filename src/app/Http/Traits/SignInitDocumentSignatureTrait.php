@@ -3,6 +3,7 @@
 namespace App\Http\Traits;
 
 use App\Enums\BsreStatusTypeEnum;
+use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
@@ -10,6 +11,7 @@ use App\Exceptions\CustomException;
 use App\Jobs\ProcessMultipleEsignDocument;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
+use Illuminate\Support\Facades\Redis;
 
 /**
  * Setup configuration for signature document
@@ -74,8 +76,9 @@ trait SignInitDocumentSignatureTrait
     {
         $setupConfig = $this->setupCheckUserSignature($userId);
         if ($setupConfig == true) {
-            $requestInput['userId']      = ($userId != null) ? $userId : auth()->user()->PeopleId;
-            $requestInput['header']      = getallheaders();
+            $requestInput['userId']    = ($userId != null) ? $userId : auth()->user()->PeopleId;
+            $requestInput['header']    = getallheaders();
+            $requestInput['items']     = $documents->pluck('id')->toArray();
             $this->doDocumentSignatureMultiple($documents, $requestInput);
         } else {
             return $setupConfig;
@@ -137,14 +140,28 @@ trait SignInitDocumentSignatureTrait
     /**
      * doDocumentSignatureMultiple
      *
-     * @param  array $items
+     * @param  collection $items
      * @param  array $requestInput
      * @return array
      */
     protected function doDocumentSignatureMultiple($items, $requestInput)
     {
+        if ($requestInput['medium'] == MediumTypeEnum::WEBSITE()) {
+            $requestEsignMultifileWebsite = json_encode([
+                'userId' => $requestInput['userId'],
+                'process' => 'esign',
+                'status' => SignatureQueueTypeEnum::PROCESS(),
+                'hasError' => false,
+                'method' => SignatureMethodTypeEnum::MULTIFILE(),
+                'medium' => $requestInput['medium'],
+                'isSignedSelf' => $requestInput['isSignedSelf'],
+                'items' => $requestInput['items']
+            ]);
+            $key = 'esign:document_upload:multifile:website:' . $requestInput['userId'];
+            Redis::set($key, $requestEsignMultifileWebsite, 'EX', config('sikd.redis_exp_default'));
+        }
         foreach ($items as $item) {
-            ProcessMultipleEsignDocument::dispatch($item->id, $items, $requestInput);
+            ProcessMultipleEsignDocument::dispatch($item->id, $requestInput);
         }
 
         return $items;

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\V1;
 
 use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
+use App\Enums\SignatureQueueTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EsignDocumentSignatureRequest;
 use App\Http\Traits\SignInitDocumentSignatureTrait;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Redis;
 
 class EsignDocumentSignatureController extends Controller
 {
@@ -26,12 +28,7 @@ class EsignDocumentSignatureController extends Controller
         }
 
         if ($request->esign_type == SignatureMethodTypeEnum::MULTIFILE()) {
-            /**
-             * TODO : CREATE KEY ON REDIS IF USER IS DOING MULTIFILE ESIGN
-             * SAVE ERROR STATE ON REDIS ESIGN ITEM BASE ON USER
-             * SET ON REDIS PROGRESS ALL (GLOBAL AND EACH ITEM) QUEUE MULTIFILE ESIGN
-             * NOTIFICATION WILL BE ADD LATER
-             */
+            // TODO: FCM NOTIFICATION FOR WEBSITE WILL BE ADD LATER
             return $this->doMultiFileEsignMethod($request);
         }
     }
@@ -54,6 +51,16 @@ class EsignDocumentSignatureController extends Controller
 
     protected function doMultiFileEsignMethod($request)
     {
+        //check user has on process doing esugn queue on redis
+        $key = 'esign:document_upload:multifile:website:' . $request->people_id;
+        $hasOnProcessQueue = Redis::get($key);
+        if (isset($hasOnProcessQueue)) {
+            $data = json_decode($hasOnProcessQueue, true);
+            if ($data['status'] == SignatureQueueTypeEnum::PROCESS() && $data['hasError'] == false) {
+                return response()->json(['message' => 'User tidak dapat melakukan proses tanda tangan elektronik multifile hingga proses yang sedang berjalan telah selesai'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        }
+
         $requestInput = [
             'id' => ($request->is_signed_self == true) ? $request->document_signature_ids : $request->document_signature_sent_ids,
             'passphrase' => $request->passphrase,
@@ -62,7 +69,7 @@ class EsignDocumentSignatureController extends Controller
             'medium' => MediumTypeEnum::WEBSITE(),
         ];
 
-        $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['documents']);
+        $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['id']);
         if ($checkMaximumMultipleEsign != true) {
             return $checkMaximumMultipleEsign;
         }

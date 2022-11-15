@@ -65,6 +65,10 @@ trait SignUpdateDataDocumentSignatureTrait
             }
         }
 
+        if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+            $updateValue['progress_queue']  = SignatureQueueTypeEnum::DONE();
+        }
+
         //change filename with _signed & update stastus
         $updateValue['last_activity'] = setDateTimeNowValue();
         if (!$dataDocument->has_footer) {
