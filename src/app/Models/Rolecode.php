@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ListTypeEnum;
+use App\Enums\SignatureVisibleTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -57,6 +58,7 @@ class Rolecode extends Model
             ->leftJoin('people as p', 'm_ttd_kirim.PeopleID', '=', 'p.PeopleId')
             ->leftJoin('role as r', 'p.PrimaryRoleId', '=', 'r.RoleId')
             ->whereRelation('receiver', 'PeopleId', '=', $userId)
+            ->where('next', SignatureVisibleTypeEnum::SHOW())
             ->distinct()
             ->pluck('rolecode');
         $query->whereIn('rolecode_id', $OPDIds);
