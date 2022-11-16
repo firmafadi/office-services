@@ -119,15 +119,15 @@ trait SignActionDocumentSignatureTrait
         if (
             $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() &&
             $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
-            $id == end($documentSignatureEsignData['items']))
-            {
-                // Do change status status to DONE
-                $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
-                $checkQueue = Redis::get($key);
-                if (isset($checkQueue)) {
-                    $data = json_decode($checkQueue, true);
-                    $data['status'] = SignatureQueueTypeEnum::DONE();
-                    Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
+            $id == end($documentSignatureEsignData['items'])
+        ) {
+            // Do change status status to DONE
+            $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
+            $checkQueue = Redis::get($key);
+            if (isset($checkQueue)) {
+                $data = json_decode($checkQueue, true);
+                $data['status'] = SignatureQueueTypeEnum::DONE();
+                Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
             }
         }
     }
