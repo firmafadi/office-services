@@ -349,7 +349,10 @@ trait InboxFilterTrait
                                     ->where(fn($query)
                                         => $query
                                             ->whereIn('role.roleCode', $arrayIds)
-                                            ->where('AsalNaskah', 'internal')
+                                            ->where(fn($query)
+                                                => $query
+                                                    ->where('AsalNaskah', 'internal')
+                                                    ->orWhere('Pengirim', 'internal'))
                                             ->whereNull('InstansiPengirimId')
                                             ->orWhereIn('InstansiPengirimId', $arrayIds)))));
         }
