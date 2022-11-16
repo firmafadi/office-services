@@ -95,6 +95,11 @@ class ProcessMultipleEsignDocument implements ShouldQueue
                             ]);
         }
 
+        $this->updateRedisOnFailed();
+    }
+
+    protected function updateRedisOnFailed()
+    {
         if ($this->requestUserData['medium'] == MediumTypeEnum::WEBSITE()) {
             $key = 'esign:document_upload:multifile:website:' . $this->requestUserData['userId'];
             $checkQueue = Redis::get($key);

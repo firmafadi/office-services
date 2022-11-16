@@ -247,11 +247,16 @@ trait SignActionDocumentSignatureTrait
             // Set return failure esign
             return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
-            if ($documentSignatureEsignData['isSignedSelf'] == true) {
-                return $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
-            } else {
-                return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
-            }
+            return $this->doUpdateStatusOfDocument($data, $setNewFileData, $documentSignatureEsignData, $nextDocumentSent);
+        }
+    }
+
+    protected function doUpdateStatusOfDocument($data, $setNewFileData, $documentSignatureEsignData, $nextDocumentSent)
+    {
+        if ($documentSignatureEsignData['isSignedSelf'] == true) {
+            return $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
+        } else {
+            return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
         }
     }
 
