@@ -95,20 +95,20 @@ class ProcessMultipleEsignDocument implements ShouldQueue
                             ]);
         }
 
-        $this->updateRedisOnFailed();
+        if ($this->requestUserData['medium'] == MediumTypeEnum::WEBSITE()) {
+            $this->updateRedisOnFailed();
+        }
     }
 
     protected function updateRedisOnFailed()
     {
-        if ($this->requestUserData['medium'] == MediumTypeEnum::WEBSITE()) {
-            $key = 'esign:document_upload:multifile:website:' . $this->requestUserData['userId'];
-            $checkQueue = Redis::get($key);
-            if (isset($checkQueue)) {
-                $data = json_decode($checkQueue, true);
-                if ($data['hasError'] == false) {
-                    $data['hasError'] = true;
-                    Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
-                }
+        $key = 'esign:document_upload:multifile:website:' . $this->requestUserData['userId'];
+        $checkQueue = Redis::get($key);
+        if (isset($checkQueue)) {
+            $data = json_decode($checkQueue, true);
+            if ($data['hasError'] == false) {
+                $data['hasError'] = true;
+                Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
             }
         }
     }
