@@ -119,7 +119,8 @@ trait SignActionDocumentSignatureTrait
         if (
             $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() &&
             $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
-            $id == end($documentSignatureEsignData['items'])) {
+            $id == end($documentSignatureEsignData['items']))
+            {
             // Do change status status to DONE
             $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
             $checkQueue = Redis::get($key);
