@@ -38,16 +38,13 @@ trait SignActionDocumentSignatureTrait
     {
         if ($documentSignatureEsignData['isSignedSelf'] == true) {
             $data = DocumentSignature::findOrFail($documentSignatureEsignData['id']);
-            if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
-                $data->progress_queue = SignatureQueueTypeEnum::PROCESS();
-                $data->save();
-            }
         } else {
             $data = DocumentSignatureSent::findOrFail($documentSignatureEsignData['id']);
-            if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
-                $data->progress_queue = SignatureQueueTypeEnum::PROCESS();
-                $data->save();
-            }
+        }
+
+        if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+            $data->progress_queue = SignatureQueueTypeEnum::PROCESS();
+            $data->save();
         }
 
         return $this->processSignDocumentSignature($data, $documentSignatureEsignData);
@@ -99,7 +96,6 @@ trait SignActionDocumentSignatureTrait
             'tampilan'      => 'invisible',
             'image'         => 'false',
         ]);
-
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             $this->setPassphraseSessionLog($response, $documentData, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
@@ -113,17 +109,18 @@ trait SignActionDocumentSignatureTrait
             //Save new file & update status
             $doUpdate = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
-
-            if ($documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() && $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
-                $this->checkIsLastItemQueueRedis($data->id, $documentSignatureEsignData);
-            }
+            $this->checkIsLastItemQueueRedis($data->id, $documentSignatureEsignData);
             return $doUpdate;
         }
     }
 
     protected function checkIsLastItemQueueRedis($id, $documentSignatureEsignData)
     {
-        if ($id == end($documentSignatureEsignData['items'])) {
+        if (
+            $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() &&
+            $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
+            $id == end($documentSignatureEsignData['items'])) {
+            // Do change status status to DONE
             $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
             $checkQueue = Redis::get($key);
             if (isset($checkQueue)) {

@@ -52,13 +52,9 @@ class EsignDocumentSignatureController extends Controller
     protected function doMultiFileEsignMethod($request)
     {
         //check user has on process doing esugn queue on redis
-        $key = 'esign:document_upload:multifile:website:' . $request->people_id;
-        $hasOnProcessQueue = Redis::get($key);
-        if (isset($hasOnProcessQueue)) {
-            $data = json_decode($hasOnProcessQueue, true);
-            if ($data['status'] == SignatureQueueTypeEnum::PROCESS() && $data['hasError'] == false) {
-                return response()->json(['message' => 'User tidak dapat melakukan proses tanda tangan elektronik multifile hingga proses yang sedang berjalan telah selesai'], Response::HTTP_INTERNAL_SERVER_ERROR);
-            }
+        $checkRedis = $this->checkRedisHasOnProcess($request);
+        if ($checkRedis != true) {
+            return $checkRedis;
         }
 
         $requestInput = [
@@ -82,4 +78,17 @@ class EsignDocumentSignatureController extends Controller
         }
     }
 
+    protected function checkRedisHasOnProcess($request)
+    {
+        $key = 'esign:document_upload:multifile:website:' . $request->people_id;
+        $hasOnProcessQueue = Redis::get($key);
+        if (isset($hasOnProcessQueue)) {
+            $data = json_decode($hasOnProcessQueue, true);
+            if ($data['status'] == SignatureQueueTypeEnum::PROCESS() && $data['hasError'] == false) {
+                return response()->json(['message' => 'User tidak dapat melakukan proses tanda tangan elektronik multifile hingga proses yang sedang berjalan telah selesai'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        return true;
+    }
 }

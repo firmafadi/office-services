@@ -22,23 +22,42 @@ trait SignInitDocumentSignatureTrait
 
     public function setupSingleFileEsignDocument($requestInput, $userId = null)
     {
+        $checkAlreadySigned = $this->checkSingleFileAlreadySigned($requestInput);
+        if ($checkAlreadySigned != true) {
+            return $checkAlreadySigned;
+        }
+        return $this->doSingleFileEsignDocument($requestInput, $userId);
+    }
+
+    protected function checkSingleFileAlreadySigned($requestInput)
+    {
         if ($requestInput['isSignedSelf'] == true) {
             $documentSignature = DocumentSignature::findOrFail($requestInput['id']);
-            $logData = $this->setKafkaDocumentApproveResponse($documentSignature->id);
-            if ($documentSignature->status != SignatureStatusTypeEnum::WAITING()->value && $documentSignature->is_signed_self == false) {
-                return $this->setResponseDocumentAlreadySigned($logData);
-            }
+            return $this->checkErrorSingleFileAlreadySignedSelf($documentSignature);
         }
 
         if ($requestInput['isSignedSelf'] == false) {
             $documentSignatureSent = DocumentSignatureSent::findOrFail($requestInput['id']);
-            $logData = $this->setKafkaDocumentApproveResponse($documentSignatureSent->id);
-            if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
-                return $this->setResponseDocumentAlreadySigned($logData);
-            }
+            return $this->checkErrorSingleFileAlreadySigned($documentSignatureSent);
         }
+    }
 
-        return $this->doSingleFileEsignDocument($requestInput, $userId);
+    protected function checkErrorSingleFileAlreadySignedSelf($documentSignature)
+    {
+        $logData = $this->setKafkaDocumentApproveResponse($documentSignature->id);
+        if ($documentSignature->status != SignatureStatusTypeEnum::WAITING()->value && $documentSignature->is_signed_self == false) {
+            return $this->setResponseDocumentAlreadySigned($logData);
+        }
+        return true;
+    }
+
+    protected function checkErrorSingleFileAlreadySigned($documentSignatureSent)
+    {
+        $logData = $this->setKafkaDocumentApproveResponse($documentSignatureSent->id);
+        if ($documentSignatureSent->status != SignatureStatusTypeEnum::WAITING()->value) {
+            return $this->setResponseDocumentAlreadySigned($logData);
+        }
+        return true;
     }
 
     protected function doSingleFileEsignDocument($requestInput, $userId)
