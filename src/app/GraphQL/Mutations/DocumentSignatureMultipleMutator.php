@@ -34,7 +34,7 @@ class DocumentSignatureMultipleMutator
         ];
 
         $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['id']);
-        if ($checkMaximumMultipleEsign != true) {
+        if ($checkMaximumMultipleEsign !== true) {
             return $checkMaximumMultipleEsign;
         }
 

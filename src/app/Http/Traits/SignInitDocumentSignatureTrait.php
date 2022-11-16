@@ -23,7 +23,7 @@ trait SignInitDocumentSignatureTrait
     public function setupSingleFileEsignDocument($requestInput, $userId = null)
     {
         $checkAlreadySigned = $this->checkSingleFileAlreadySigned($requestInput);
-        if ($checkAlreadySigned != true) {
+        if ($checkAlreadySigned !== true) {
             return $checkAlreadySigned;
         }
         return $this->doSingleFileEsignDocument($requestInput, $userId);

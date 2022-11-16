@@ -53,7 +53,7 @@ class EsignDocumentSignatureController extends Controller
     {
         //check user has on process doing esugn queue on redis
         $checkRedis = $this->checkRedisHasOnProcess($request);
-        if ($checkRedis != true) {
+        if ($checkRedis !== true) {
             return $checkRedis;
         }
 
@@ -66,7 +66,7 @@ class EsignDocumentSignatureController extends Controller
         ];
 
         $checkMaximumMultipleEsign = $this->checkMaximumMultipleEsign($requestInput['id']);
-        if ($checkMaximumMultipleEsign != true) {
+        if ($checkMaximumMultipleEsign !== true) {
             return $checkMaximumMultipleEsign;
         }
 
