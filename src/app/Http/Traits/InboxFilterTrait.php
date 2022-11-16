@@ -334,24 +334,22 @@ trait InboxFilterTrait
         $deptsIds = $filter['senderDepts'] ?? null;
         if ($deptsIds) {
             $arrayIds = explode(", ", $deptsIds);
-            $query->whereIn('NId', fn($query)
-                => $query
-                    ->select('NId')
-                    ->from('inbox')
-                    ->whereIn('createdBy', fn($query)
-                        => $query
-                            ->select('PeopleId')
-                            ->from('people')
-                            ->whereIn('PrimaryRoleId', fn($query)
-                                => $query
-                                    ->select('RoleId')
-                                    ->from('role')
-                                    ->where(fn($query)
-                                        => $query
-                                            ->whereIn('role.roleCode', $arrayIds)
-                                            ->where('AsalNaskah', 'internal')
-                                            ->whereNull('InstansiPengirimId')
-                                            ->orWhereIn('InstansiPengirimId', $arrayIds)))));
+            $query->whereIn('NId', fn ($query)
+            => $query->select('NId')
+                ->from('inbox')
+                ->whereIn('createdBy', fn ($query)
+                => $query->select('PeopleId')
+                    ->from('people')
+                    ->whereIn('PrimaryRoleId', fn ($query)
+                    => $query->select('RoleId')
+                        ->from('role')
+                        ->where(fn ($query)
+                        => $query->whereIn('role.roleCode', $arrayIds)
+                            ->where(fn ($query)
+                            => $query->where('AsalNaskah', 'internal')
+                                ->orWhere('Pengirim', 'internal'))
+                            ->whereNull('InstansiPengirimId')
+                            ->orWhereIn('InstansiPengirimId', $arrayIds)))));
         }
     }
 
