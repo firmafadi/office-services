@@ -252,15 +252,6 @@ trait SignActionDocumentSignatureTrait
         }
     }
 
-    protected function doUpdateStatusOfDocument($data, $setNewFileData, $documentSignatureEsignData, $nextDocumentSent)
-    {
-        if ($documentSignatureEsignData['isSignedSelf'] == true) {
-            return $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
-        } else {
-            return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
-        }
-    }
-
     /**
      * doTransferFile
      *
@@ -321,6 +312,19 @@ trait SignActionDocumentSignatureTrait
         return $documentRequest;
     }
 
+    protected function doUpdateStatusOfDocument($data, $setNewFileData, $documentSignatureEsignData, $nextDocumentSent)
+    {
+        if ($documentSignatureEsignData['isSignedSelf'] == true) {
+            $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
+            $updateData = DocumentSignature::where('id', $data->id)->first();
+        } else {
+            $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
+            $updateData = DocumentSignatureSent::where('id', $data->id)->first();
+        }
+
+        return $updateData;
+    }
+
     /**
      * updateDocumentSentStatus
      *
@@ -332,14 +336,12 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData)
     {
-        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         DB::beginTransaction();
         try {
             //update document after esign (set if new file or update last activity)
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
             //update status document sent to 1 (signed)
             $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
-            $updateData = DocumentSignatureSent::where('id', $data->id)->first();
             //Send notification status to who esign the document if multi-file esign
             if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
                 $this->doSendNotificationSelf($data->id, $documentSignatureEsignData);
@@ -357,9 +359,9 @@ trait SignActionDocumentSignatureTrait
                 $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $documentSignatureEsignData['esignMethod']);
             }
             DB::commit();
-            return $updateData;
         } catch (\Throwable $th) {
             DB::rollBack();
+            $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
             $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
 
@@ -380,17 +382,15 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData)
     {
-        $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data :$data->documentSignature;
         DB::beginTransaction();
         try {
             //update document after esign (set if new file or update last activity)
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
-            $updateData = DocumentSignature::where('id', $data->id)->first();
 
             DB::commit();
-            return $updateData;
         } catch (\Throwable $th) {
             DB::rollBack();
+            $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
             $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
             $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
 
