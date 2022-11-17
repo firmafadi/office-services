@@ -314,15 +314,24 @@ trait SignActionDocumentSignatureTrait
 
     protected function doUpdateStatusOfDocument($data, $setNewFileData, $documentSignatureEsignData, $nextDocumentSent)
     {
-        if ($documentSignatureEsignData['isSignedSelf'] == true) {
-            $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
-            $updateData = DocumentSignature::where('id', $data->id)->first();
-        } else {
-            $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
-            $updateData = DocumentSignatureSent::where('id', $data->id)->first();
-        }
+        DB::beginTransaction();
+        try {
+            if ($documentSignatureEsignData['isSignedSelf'] == true) {
+                return $this->updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData);
+            } else {
+                return $this->updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData);
+            }
 
-        return $updateData;
+            DB::commit();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
+            $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
+            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
+
+            // Set return failure esign
+            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+        }
     }
 
     /**
@@ -336,40 +345,28 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateDocumentSentStatus($data, $setNewFileData, $nextDocumentSent, $documentSignatureEsignData)
     {
-        DB::beginTransaction();
-        try {
-            //update document after esign (set if new file or update last activity)
-            $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
-            //update status document sent to 1 (signed)
-            $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
-            //Send notification status to who esign the document if multi-file esign
-            if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
-                $this->doSendNotificationSelf($data->id, $documentSignatureEsignData);
-            }
-            //check if any next siganture require
-            if ($nextDocumentSent) {
-                $this->updateNextDocumentSent($nextDocumentSent->id);
-                //Send notification to next people
-                $this->doSendNotification($nextDocumentSent->id, $documentSignatureEsignData['esignMethod']);
-            } else { // if this is last people
-                $this->updateDocumentSignatureLastPeopleAction($data->ttd_id);
-                // update passed people at document signature list when last people already signed
-                $this->updateDocumentSignatureSentMissedAction($data->ttd_id);
-                //Send notification to sender
-                $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $documentSignatureEsignData['esignMethod']);
-            }
-            DB::commit();
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
-            $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
-            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
-
-            // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+        //update document after esign (set if new file or update last activity)
+        $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
+        //update status document sent to 1 (signed)
+        $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
+        //Send notification status to who esign the document if multi-file esign
+        if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
+            $this->doSendNotificationSelf($data->id, $documentSignatureEsignData);
         }
-
-        return $data;
+        //check if any next siganture require
+        if ($nextDocumentSent) {
+            $this->updateNextDocumentSent($nextDocumentSent->id);
+            //Send notification to next people
+            $this->doSendNotification($nextDocumentSent->id, $documentSignatureEsignData['esignMethod']);
+        } else { // if this is last people
+            $this->updateDocumentSignatureLastPeopleAction($data->ttd_id);
+            // update passed people at document signature list when last people already signed
+            $this->updateDocumentSignatureSentMissedAction($data->ttd_id);
+            //Send notification to sender
+            $this->doSendForwardNotification($data->id, $data->receiver->PeopleName, $documentSignatureEsignData['esignMethod']);
+        }
+        $updateData = DocumentSignatureSent::where('id', $data->id)->first();
+        return $updateData;
     }
 
     /**
@@ -382,22 +379,9 @@ trait SignActionDocumentSignatureTrait
      */
     protected function updateSelfDocumentSentStatus($data, $setNewFileData, $documentSignatureEsignData)
     {
-        DB::beginTransaction();
-        try {
-            //update document after esign (set if new file or update last activity)
-            $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
-
-            DB::commit();
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            $documentData = ($documentSignatureEsignData['isSignedSelf'] == true) ? $data : $data->documentSignature;
-            $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
-            $this->kafkaPublish('analytic_event', $logData, $documentSignatureEsignData['header']);
-
-            // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
-        }
-
-        return $data;
+        //update document after esign (set if new file or update last activity)
+        $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
+        $updateData = DocumentSignature::where('id', $data->id)->first();
+        return $updateData;
     }
 }
