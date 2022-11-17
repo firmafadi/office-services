@@ -339,7 +339,8 @@ trait SignActionDocumentSignatureTrait
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
 
             //update status document sent to 1 (signed)
-            $update = $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
+            $this->updateDocumentSignatureSentStatusAfterEsign($data, $documentSignatureEsignData['esignMethod']);
+            $updateData = DocumentSignatureSent::where('id', $data->id)->first();
 
             //Send notification status to who esign the document if multi-file esign
             if ($documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE()) {
@@ -360,7 +361,7 @@ trait SignActionDocumentSignatureTrait
             }
             DB::commit();
 
-            return $update;
+            return $updateData;
         } catch (\Throwable $th) {
             DB::rollBack();
             $logData = $this->setLogFailedUpdateDataAfterEsign($documentData, $th);
@@ -388,7 +389,7 @@ trait SignActionDocumentSignatureTrait
         try {
             //update document after esign (set if new file or update last activity)
             $this->updateDocumentSignatureAfterEsign($data, $setNewFileData, $documentSignatureEsignData);
-            $updateData = DocumentSignature::where('id', $data->id);
+            $updateData = DocumentSignature::where('id', $data->id)->first();
 
             DB::commit();
             return $updateData;

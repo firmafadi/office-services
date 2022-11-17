@@ -39,6 +39,7 @@ class EsignDocumentSignatureController extends Controller
             'id' => ($request->is_signed_self == true) ? $request->document_signature_ids[0] : $request->document_signature_sent_ids[0],
             'passphrase' => $request->passphrase,
             'isSignedSelf' => $request->is_signed_self,
+            'medium' => MediumTypeEnum::WEBSITE(),
         ];
 
         try {
