@@ -21,7 +21,7 @@ class DocumentSignature extends Model
     {
         $path = config('sikd.base_path_file');
         $file = $this->checkFile($path . 'ttd/sudah_ttd/' . $this->file);
-        if ($file == false) {
+        if ($file === false) {
             $file = $path . 'ttd/blm_ttd/' . $this->file;
         }
         return $file;
@@ -30,7 +30,7 @@ class DocumentSignature extends Model
     public function getUrlPublicAttribute()
     {
         $path = config('sikd.base_path_file');
-        if ($this->is_registered != null) {
+        if ($this->is_registered !== null) {
             // New data with registered flow OR check on is_mandatory_registered == false but status == SUCCESS
             if ($this->is_registered == true || ($this->status == SignatureStatusTypeEnum::SUCCESS()->value && $this->documentSignatureType->is_mandatory_registered == false)) {
                 $file = $path . 'ttd/sudah_ttd/' . $this->file;
