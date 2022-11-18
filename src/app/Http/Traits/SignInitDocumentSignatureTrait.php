@@ -45,7 +45,7 @@ trait SignInitDocumentSignatureTrait
     protected function checkErrorSingleFileAlreadySignedSelf($documentSignature)
     {
         $logData = $this->setKafkaDocumentApproveResponse($documentSignature->id);
-        if ($documentSignature->status != SignatureStatusTypeEnum::WAITING()->value && $documentSignature->is_signed_self == false) {
+        if ($documentSignature->status != SignatureStatusTypeEnum::WAITING()->value && $documentSignature->is_signed_self != false) {
             return $this->setResponseDocumentAlreadySigned($logData);
         }
         return true;
