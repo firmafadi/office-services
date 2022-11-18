@@ -7,21 +7,22 @@ use App\Enums\KafkaStatusTypeEnum;
 /**
  * Setup configuration for signature document
  */
-trait KafkaSignDocumentSignatureTrait
+trait KafkaSignActionDocumentSignatureTrait
 {
     /**
      * setKafkaDocumentApproveResponse
      *
-     * @param  integer $documentSignatureSentId
+     * @param  integer $documentId
      * @return array
      */
-    protected function setKafkaDocumentApproveResponse($documentSignatureSentId)
+    protected function setKafkaDocumentApproveResponse($documentId, $isSignedSelf = false)
     {
         $logData = [
             'event' => 'document_approve',
             'status' => KafkaStatusTypeEnum::DOCUMENT_APPROVE_FAILED_ALREADY_SIGNED(),
             'letter' => [
-                'id' => $documentSignatureSentId
+                'id' => $documentId,
+                'is_signed_self' => $isSignedSelf,
             ],
         ];
 

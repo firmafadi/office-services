@@ -11,7 +11,7 @@ use App\Enums\SignatureVisibleTypeEnum;
 use App\Enums\StatusReadTypeEnum;
 use App\Http\Traits\SendNotificationTrait;
 use App\Exceptions\CustomException;
-use App\Http\Traits\SignActionDocumentSignatureTrait;
+use App\Http\Traits\SignUpdateDataDocumentSignatureTrait;
 use App\Http\Traits\KafkaTrait;
 use App\Models\DocumentSignature;
 use App\Models\DocumentSignatureSent;
@@ -21,7 +21,7 @@ class DocumentSignatureRejectMutator
 {
     use SendNotificationTrait;
     use KafkaTrait;
-    use SignActionDocumentSignatureTrait;
+    use SignUpdateDataDocumentSignatureTrait;
 
     /**
      * @param $rootValue

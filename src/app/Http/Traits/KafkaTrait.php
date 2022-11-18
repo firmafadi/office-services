@@ -2,6 +2,7 @@
 
 namespace App\Http\Traits;
 
+use App\Enums\MediumTypeEnum;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Junges\Kafka\Facades\Kafka;
@@ -28,7 +29,7 @@ trait KafkaTrait
             return false;
         }
 
-        $data['medium']     = 'mobile';
+        $data['medium']     = MediumTypeEnum::MOBILE();
         $data['timestamp']  = Carbon::now()->toIso8601ZuluString();
 
         if ($header == null) {
