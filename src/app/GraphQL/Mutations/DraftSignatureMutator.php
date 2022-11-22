@@ -111,7 +111,7 @@ class DraftSignatureMutator
         if ($response->status() != Response::HTTP_OK) {
             $bodyResponse = json_decode($response->body());
             $this->setPassphraseSessionLog($response, $draft, SignatureDocumentTypeEnum::DRAFTING_DOCUMENT());
-            throw new CustomException('Gagal melakukan tanda tangan elektronik', $bodyResponse->error);
+            throw new CustomException($bodyResponse->error, 'Gagal melakukan tanda tangan elektronik, silahkan coba kembali');
         } else {
             //Save new file & update status
             $draft = $this->saveNewFile($response, $draft, $verifyCode);

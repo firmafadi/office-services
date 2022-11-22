@@ -12,7 +12,6 @@ use App\Models\DocumentSignatureSent;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -104,32 +103,15 @@ trait SignActionDocumentSignatureTrait
                 'longMessage' => $bodyResponse->error
             ];
             // Set return failure esign
-            return $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
+            $responseAfterEsign = $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
         } else {
             //Save new file & update status
-            $doUpdate = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
+            $responseAfterEsign = $this->saveNewFile($response, $data, $setNewFileData, $documentSignatureEsignData);
             $this->setPassphraseSessionLog($response, $data, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
-            $this->checkIsLastItemQueueRedis($data->id, $documentSignatureEsignData);
-            return $doUpdate;
         }
-    }
 
-    protected function checkIsLastItemQueueRedis($id, $documentSignatureEsignData)
-    {
-        if (
-            $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() &&
-            $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
-            $id == end($documentSignatureEsignData['items'])
-        ) {
-            // Do change status status to DONE
-            $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
-            $checkQueue = Redis::get($key);
-            if (isset($checkQueue)) {
-                $data = json_decode($checkQueue, true);
-                $data['status'] = SignatureQueueTypeEnum::DONE();
-                Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
-            }
-        }
+        $this->checkIsLastItemQueueRedis($data->id, $documentSignatureEsignData);
+        return $responseAfterEsign;
     }
 
     /**

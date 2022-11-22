@@ -27,6 +27,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
 
     protected $id;
     protected $requestUserData;
+    protected static $documentSignatureEsignData;
 
     /**
      * Create a new job instance.
@@ -58,7 +59,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
             ]);
         }
 
-        $documentSignatureEsignData = [
+        self::$documentSignatureEsignData = [
             'id' => $this->id,
             'items' => $this->requestUserData['items'],
             'userId' => $this->requestUserData['userId'],
@@ -70,7 +71,7 @@ class ProcessMultipleEsignDocument implements ShouldQueue
             'medium' => $this->requestUserData['medium'],
         ];
 
-        $this->initProcessSignDocumentSignature($documentSignatureEsignData);
+        $this->initProcessSignDocumentSignature(self::$documentSignatureEsignData);
     }
 
     /**
@@ -98,6 +99,8 @@ class ProcessMultipleEsignDocument implements ShouldQueue
         if ($this->requestUserData['medium'] == MediumTypeEnum::WEBSITE()) {
             $this->updateRedisOnFailed();
         }
+
+        $this->checkIsLastItemQueueRedis($this->id, self::$documentSignatureEsignData);
     }
 
     protected function updateRedisOnFailed()
