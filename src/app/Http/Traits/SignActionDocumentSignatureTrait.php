@@ -99,8 +99,8 @@ trait SignActionDocumentSignatureTrait
             $bodyResponse = json_decode($response->body());
             $this->setPassphraseSessionLog($response, $documentData, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
             $logData = [
-                'message' => 'Gagal melakukan tanda tangan elektronik',
-                'longMessage' => $bodyResponse->error
+                'message' => $bodyResponse->error,
+                'longMessage' => 'Gagal melakukan tanda tangan elektronik, silahkjkan coba kembali'
             ];
             // Set return failure esign
             $responseAfterEsign = $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
