@@ -6,12 +6,14 @@ use App\Enums\DocumentSignatureSentNotificationTypeEnum;
 use App\Enums\FcmNotificationActionTypeEnum;
 use App\Enums\FcmNotificationListTypeEnum;
 use App\Enums\KafkaStatusTypeEnum;
+use App\Enums\MediumTypeEnum;
 use App\Enums\SignatureDocumentTypeEnum;
 use App\Enums\SignatureMethodTypeEnum;
 use App\Enums\SignatureQueueTypeEnum;
 use App\Enums\SignatureStatusTypeEnum;
 use App\Exceptions\CustomException;
 use App\Models\DocumentSignatureSent;
+use Illuminate\Support\Facades\Redis;
 
 /**
  * Setup configuration for signature document
@@ -34,7 +36,11 @@ trait SignNotificationDocumentSignatureTrait
      */
     public function esignFailedExceptionResponse($message, $documentSignatureEsignData = null, $id = null, $documentType = null)
     {
-        if ($documentSignatureEsignData['esignMethod'] == null || $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::SINGLEFILE()) {
+        if (
+            $documentSignatureEsignData['esignMethod'] == null ||
+            $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::SINGLEFILE() ||
+            $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE()
+        ) {
             throw new CustomException($message['message'], $message['longMessage']);
         }
 
@@ -174,5 +180,23 @@ trait SignNotificationDocumentSignatureTrait
         ];
 
         $this->doSendNotificationDocumentSignature($sendToNotification, $esignMethod);
+    }
+
+    protected function checkIsLastItemQueueRedis($id, $documentSignatureEsignData)
+    {
+        if (
+            $documentSignatureEsignData['medium'] == MediumTypeEnum::WEBSITE() &&
+            $documentSignatureEsignData['esignMethod'] == SignatureMethodTypeEnum::MULTIFILE() &&
+            $id == end($documentSignatureEsignData['items'])
+        ) {
+            // Do change status status to DONE
+            $key = 'esign:document_upload:multifile:website:' . $documentSignatureEsignData['userId'];
+            $checkQueue = Redis::get($key);
+            if (isset($checkQueue)) {
+                $data = json_decode($checkQueue, true);
+                $data['status'] = SignatureQueueTypeEnum::DONE();
+                Redis::set($key, json_encode($data), 'EX', config('sikd.redis_exp_default'));
+            }
+        }
     }
 }
