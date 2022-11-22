@@ -100,7 +100,7 @@ trait SignActionDocumentSignatureTrait
             $this->setPassphraseSessionLog($response, $documentData, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT(), $documentSignatureEsignData);
             $logData = [
                 'message' => $bodyResponse->error,
-                'longMessage' => 'Gagal melakukan tanda tangan elektronik, silahkjkan coba kembali'
+                'longMessage' => 'Gagal melakukan tanda tangan elektronik, silakan coba kembali'
             ];
             // Set return failure esign
             $responseAfterEsign = $this->esignFailedExceptionResponse($logData, $documentSignatureEsignData, $data->id, SignatureDocumentTypeEnum::UPLOAD_DOCUMENT());
