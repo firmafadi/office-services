@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\InboxFileTypeEnum;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -77,14 +78,34 @@ class Draft extends Model
         return $this->belongsTo(InboxFile::class, 'NId_Temp', 'NId');
     }
 
+    public function documentDraftFile()
+    {
+        return $this->inboxFile()->where('Keterangan', '!=',  InboxFileTypeEnum::ATTACHMENT_DOCUMENT());
+    }
+
+    public function inboxFiles()
+    {
+        return $this->hasMany(InboxFile::class, 'NId', 'NId_Temp');
+    }
+
+    public function attachments()
+    {
+        return $this->inboxFiles()->where('Keterangan', InboxFileTypeEnum::ATTACHMENT_DOCUMENT());
+    }
+
     public function getDraftFileAttribute()
     {
         $file = URL::to('/api/v1/draft/' . $this->NId_Temp);
-        if ($this->inboxFile) {
-            $file = config('sikd.base_path_file_letter') . $this->inboxFile->FileName_fake;
+        if ($this->documentDraftFile) {
+            $file = $this->inboxFile->url;
         }
 
         return $file;
+    }
+
+    public function getDraftFileForEsignAttribute()
+    {
+        return URL::to('/api/v1/draft/' . $this->NId_Temp);
     }
 
     public function getUrlPublicAttribute()

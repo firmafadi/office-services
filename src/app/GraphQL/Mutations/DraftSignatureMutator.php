@@ -133,7 +133,7 @@ class DraftSignatureMutator
         try {
             $addFooter = Http::attach(
                 'pdf',
-                file_get_contents($draft->draft_file . '?esign=true'),
+                file_get_contents($draft->draft_file_for_esign . '?esign=true'),
                 $draft->document_file_name
             )->post(config('sikd.add_footer_url'), [
                 'qrcode' => config('sikd.url') . 'verification/document/tte/' . $verifyCode . '?source=qrcode',

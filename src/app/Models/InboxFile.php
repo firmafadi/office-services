@@ -38,6 +38,11 @@ class InboxFile extends Model
         return $query;
     }
 
+    public function getUrlAttribute()
+    {
+        return config('sikd.base_path_file_letter') . $this->FileName_fake;
+    }
+
     public function setEditedDateAttribute($value)
     {
         $this->attributes['EditedDate'] = $value->copy()->setTimezone(config('sikd.timezone_server'));

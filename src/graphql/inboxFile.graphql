@@ -1,6 +1,7 @@
 type InboxFile {
     id: String @rename(attribute: "Id_dokumen")
     name: String @rename(attribute: "FileName_fake")
+    url: String @rename(attribute: "url")
     inboxDetail: Inbox @belongsTo
     inboxReceivers: [InboxReceiver] @hasMany
     validation: Validation @field(resolver: "App\\GraphQL\\Types\\InboxFileType@validate")
