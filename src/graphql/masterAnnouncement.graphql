@@ -1,0 +1,7 @@
+type MasterAnnouncement {
+    id: ID! @rename(attribute: "notice_id")
+    name: String! @rename(attribute: "notice_name")
+    description: String @rename(attribute: "notice_description")
+    startDate: String @rename(attribute: "tgl_awal")
+    endDate: String @rename(attribute: "tgl_akhir")
+}
