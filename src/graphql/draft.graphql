@@ -11,6 +11,7 @@ type Draft {
     address: String @rename(attribute: "Alamat")
     folder: String @rename(attribute: "Ket")
     file: String @rename(attribute: "DraftFile")
+    attachments: [InboxFile] @rename(attribute: "attachments")
     roleCode: String @rename(attribute: "RoleCode")
     type: DocumentType @belongsTo
     urgency: DocumentUrgency @belongsTo
@@ -26,6 +27,7 @@ input DraftSignatureInput {
 }
 
 #import people.graphql
+#import inboxFile.graphql
 #import documentType.graphql
 #import documentUrgency.graphql
 #import masterClassified.graphql
