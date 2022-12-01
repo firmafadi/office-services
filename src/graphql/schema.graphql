@@ -194,6 +194,11 @@ type Query {
         @orderBy(column: "rolecode_id", direction: ASC)
         @paginate(type: CONNECTION)
         @guard
+
+    announcements: [MasterAnnouncement!]!
+        @orderBy(column: "notice_id", direction: DESC)
+        @paginate(type: CONNECTION, scopes: ["priority"])
+        @guard
 }
 
 type Mutation {
@@ -254,6 +259,7 @@ type Mutation {
 #import documentSignatureForward.graphql
 #import documentType.graphql
 #import masterClassified.graphql
+#import masterAnnouncement.graphql
 #import masterDisposition.graphql
 #import documentUrgency.graphql
 #import inboxReceiverCorrection.graphql
