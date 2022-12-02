@@ -62,15 +62,10 @@ trait SignInitDocumentSignatureTrait
 
     protected function doSingleFileEsignDocument($requestInput, $userId)
     {
-        $setupConfig = $this->setupCheckUserSignature($userId);
-        if ($setupConfig == true) {
-            $requestInput['userId']      = ($userId != null) ? $userId : auth()->user()->PeopleId;
-            $requestInput['esignMethod'] = SignatureMethodTypeEnum::SINGLEFILE();
-            $requestInput['header']      = getallheaders();
-            return $this->initProcessSignDocumentSignature($requestInput);
-        } else {
-            return $setupConfig;
-        }
+        $requestInput['userId']      = ($userId != null) ? $userId : auth()->user()->PeopleId;
+        $requestInput['esignMethod'] = SignatureMethodTypeEnum::SINGLEFILE();
+        $requestInput['header']      = getallheaders();
+        return $this->initProcessSignDocumentSignature($requestInput);
     }
 
     public function setupMultiFileEsignDocument($requestInput, $userId = null)
@@ -93,15 +88,10 @@ trait SignInitDocumentSignatureTrait
 
     public function doMultiFileEsignDocument($documents, $requestInput, $userId = null)
     {
-        $setupConfig = $this->setupCheckUserSignature($userId);
-        if ($setupConfig == true) {
-            $requestInput['userId']    = ($userId != null) ? $userId : auth()->user()->PeopleId;
-            $requestInput['header']    = getallheaders();
-            $requestInput['items']     = $documents->pluck('id')->toArray();
-            $this->doDocumentSignatureMultiple($documents, $requestInput);
-        } else {
-            return $setupConfig;
-        }
+        $requestInput['userId']    = ($userId != null) ? $userId : auth()->user()->PeopleId;
+        $requestInput['header']    = getallheaders();
+        $requestInput['items']     = $documents->pluck('id')->toArray();
+        $this->doDocumentSignatureMultiple($documents, $requestInput);
 
         return $documents;
     }

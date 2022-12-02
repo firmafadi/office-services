@@ -57,25 +57,20 @@ class DraftSignatureMutator
 
         $draft       = Draft::where('NId_temp', $draftId)->first();
         $setupConfig = $this->setupConfigSignature();
-        $checkUserResponse = json_decode($this->checkUserSignature($setupConfig));
-        if (isset($checkUserResponse->status_code) && $checkUserResponse->status_code == BsreStatusTypeEnum::RESPONSE_CODE_BSRE_ACCOUNT_OK()->value) {
-            $signature = $this->doSignature($setupConfig, $draft, $passphrase);
+        $signature = $this->doSignature($setupConfig, $draft, $passphrase);
 
-            $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
-            $draft->save();
+        $draft->Konsep = DraftConceptStatusTypeEnum::SENT()->value;
+        $draft->save();
 
-            $this->kafkaPublish('analytic_event', [
-                'event' => 'esign_sign_draft',
-                'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
-                'letter' => [
-                    'id' => $draftId
-                ]
-            ]);
+        $this->kafkaPublish('analytic_event', [
+            'event' => 'esign_sign_draft',
+            'status' => KafkaStatusTypeEnum::ESIGN_SUCCESS(),
+            'letter' => [
+                'id' => $draftId
+            ]
+        ]);
 
-            return $signature;
-        } else {
-            $this->invalidResponseCheckUserSignature($checkUserResponse);
-        }
+        return $signature;
     }
 
     /**
@@ -133,7 +128,7 @@ class DraftSignatureMutator
         try {
             $addFooter = Http::attach(
                 'pdf',
-                file_get_contents($draft->draft_file_for_esign . '?esign=true'),
+                file_get_contents($draft->draft_file . '?esign=true'),
                 $draft->document_file_name
             )->post(config('sikd.add_footer_url'), [
                 'qrcode' => config('sikd.url') . 'verification/document/tte/' . $verifyCode . '?source=qrcode',
