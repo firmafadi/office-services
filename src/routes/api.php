@@ -12,6 +12,7 @@ use App\Http\Controllers\V1\DocumentTypeController;
 use App\Http\Controllers\V1\EsignDocumentCheckStatusController;
 use App\Http\Controllers\V1\EsignDocumentTypeController;
 use App\Http\Controllers\V1\EsignSignerController;
+use App\Http\Controllers\V1\TestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::prefix('v1')->group(function () {
+    Route::get('/test', [TestController::class, '__invoke']);
+    Route::post('/test-post', [TestController::class, 'testPost']);
     Route::post('/send-notification', [SendNotificationController::class, '__invoke']);
     Route::post('/log-user-activity', [LogUserActivityController::class, '__invoke']);
     Route::get('/draft/{id}', [DocumentDraftPdfController::class, '__invoke']);
